@@ -1,1 +1,1 @@
-from .pancreas_loader import PancreasDataset, get_loaders
+from .pancreas_loader import PancreasDataset, FullVolumeDataset, get_loaders

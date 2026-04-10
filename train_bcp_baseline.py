@@ -30,6 +30,7 @@ import random
 import logging
 import argparse
 from pathlib import Path
+import numpy as np
 
 import numpy as np
 import torch
@@ -38,7 +39,7 @@ import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 
 from networks import VNet
-from dataloaders import get_loaders
+from dataloaders import get_loaders, FullVolumeDataset
 from utils.losses import SupLoss, DiceLoss
 from utils.ramps import get_current_consistency_weight
 from utils.metrics import evaluate
@@ -169,13 +170,17 @@ def train(args):
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr, weight_decay=1e-4)
 
     # ── Data ─────────────────────────────────────────────────────────────────
-    lab_loader, unlab_loader, test_loader = get_loaders(
+    lab_loader, unlab_loader, _ = get_loaders(
         data_root=args.data_root,
         splits_dir=args.splits_dir,
         label_percent=args.label_percent,
         patch_size=args.patch_size,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
+    )
+    test_dataset = FullVolumeDataset(
+        args.data_root,
+        str(Path(args.splits_dir) / 'test.txt')
     )
     log.info(f'Labeled: {len(lab_loader)} batches | Unlabeled: {len(unlab_loader)} batches')
 
@@ -187,7 +192,7 @@ def train(args):
 
     for epoch in range(1, args.max_epochs + 1):
         net.train()
-        net_ema.train()
+        net_ema.eval()   # EMA teacher always in eval mode
 
         ep_loss1 = ep_loss2 = 0.0
 
@@ -245,7 +250,7 @@ def train(args):
         # ── Evaluation ───────────────────────────────────────────────────────
         if epoch % args.eval_every == 0 or epoch == args.max_epochs:
             dice, jc, hd, asd = evaluate(
-                net, test_loader,
+                net, test_dataset,
                 patch_size=args.patch_size,
                 n_classes=args.num_classes
             )

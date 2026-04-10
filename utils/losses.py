@@ -41,10 +41,10 @@ def entropy_loss_masked(probs, mask):
     """
     Shannon entropy applied only on voxels where mask > 0.
     mask: (B, W, H, D) float tensor — 1 on disagreement voxels, 0 elsewhere.
-    Returns scalar 0 if mask is entirely zero (no disagreement).
+    Returns scalar 0 (still in compute graph) if mask is entirely zero.
     """
     H = -(probs * torch.log(probs + 1e-8)).sum(dim=1)   # (B, W, H, D)
     n = mask.sum()
     if n == 0:
-        return torch.tensor(0.0, device=probs.device, requires_grad=True)
+        return (probs * 0).sum()   # zero but stays in graph, no grad issues
     return (H * mask).sum() / n

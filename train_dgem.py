@@ -43,7 +43,7 @@ from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
 from networks import VNet
-from dataloaders import get_loaders
+from dataloaders import get_loaders, FullVolumeDataset
 from utils.losses import SupLoss, entropy_loss_masked
 from utils.ramps  import get_current_consistency_weight
 from utils.metrics import evaluate
@@ -148,13 +148,18 @@ def train(args):
     sup_loss_fn = SupLoss(args.num_classes)
 
     # ── Data ─────────────────────────────────────────────────────────────────
-    lab_loader, unlab_loader, test_loader = get_loaders(
+    lab_loader, unlab_loader, _ = get_loaders(
         data_root=args.data_root,
         splits_dir=args.splits_dir,
         label_percent=args.label_percent,
         patch_size=args.patch_size,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
+    )
+    # Use full volumes for evaluation (not cropped patches)
+    test_dataset = FullVolumeDataset(
+        args.data_root,
+        str(Path(args.splits_dir) / 'test.txt')
     )
     log.info(f'Labeled batches/epoch: {len(lab_loader)} | '
              f'Unlabeled batches/epoch: {len(unlab_loader)}')
@@ -166,7 +171,7 @@ def train(args):
 
     for epoch in range(1, args.max_epochs + 1):
         net.train()
-        net_ema.train()
+        net_ema.eval()   # EMA teacher always in eval — no dropout stochasticity
 
         ep_sup = ep_em = ep_disagree_ratio = 0.0
 
@@ -232,7 +237,7 @@ def train(args):
         # ── Evaluation ───────────────────────────────────────────────────────
         if epoch % args.eval_every == 0 or epoch == args.max_epochs:
             dice, jc, hd, asd = evaluate(
-                net, test_loader,
+                net, test_dataset,
                 patch_size=args.patch_size,
                 n_classes=args.num_classes
             )

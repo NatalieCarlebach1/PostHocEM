@@ -85,9 +85,31 @@ class PancreasDataset(Dataset):
         else:
             image, label = self.crop(image, label)
 
-        image = torch.from_numpy(image).unsqueeze(0).float()   # (1, W, H, D)
+        image = torch.from_numpy(image).unsqueeze(0).float()    # (1, W, H, D)
         label = torch.from_numpy(label.astype(np.int64)).long() # (W, H, D)
         return image, label
+
+
+class FullVolumeDataset(Dataset):
+    """
+    Returns the FULL uncropped volume — used for sliding-window evaluation.
+    Yields (image, label, case_name).
+    """
+    def __init__(self, data_root, split_file):
+        self.data_root = Path(data_root)
+        with open(split_file) as f:
+            self.cases = [l.strip() for l in f if l.strip()]
+
+    def __len__(self):
+        return len(self.cases)
+
+    def __getitem__(self, idx):
+        case = self.cases[idx]
+        path = self.data_root / case
+        with h5py.File(str(path), 'r') as f:
+            image = f['image'][:].astype(np.float32)
+            label = f['label'][:].astype(np.uint8)
+        return image, label, Path(case).stem
 
 
 # ── Factory ──────────────────────────────────────────────────────────────────
