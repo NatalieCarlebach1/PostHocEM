@@ -46,8 +46,134 @@ md("## 8. Loss Curves"),
 code("!python visualize.py losses \\\n    --result_dirs \\\n        \"Supervised only:{SUP_SAVE}\" \\\n        \"BCP (CVPR 2023):{BCP_SAVE}\" \\\n        \"DGEM (ours):{DGEM_SAVE}\" \\\n    --out_dir {FIG_DIR}\n\nfrom IPython.display import Image as IPImage, display\ndisplay(IPImage(f'{FIG_DIR}/loss_curves.png'))"),
 code("display(IPImage(f'{FIG_DIR}/em_loss.png'))"),
 
-md("## 9. Prediction Grids [CT | GT | BCP | DGEM]"),
-code("!python visualize.py predictions \\\n    --data_root  {DATA_ROOT} \\\n    --test_file  {SPLITS_DIR}/test.txt \\\n    --patch_size {PATCH_SIZE} \\\n    --checkpoints \\\n        \"BCP (CVPR 2023):{BCP_SAVE}/best_model.pth\" \\\n        \"DGEM (ours):{DGEM_SAVE}/best_model.pth\" \\\n    --n_cases 4 \\\n    --out_dir {FIG_DIR}\n\nimport glob\nfrom IPython.display import Image as IPImage, display\nfor p in sorted(glob.glob(f'{FIG_DIR}/pred_*.png')):\n    print(p)\n    display(IPImage(p))"),
+md("## 9. Qualitative Results — GT vs BCP vs DGEM\n\nFor each random test case: three views (axial / coronal / sagittal) through the lesion centroid.\nEach row shows the CT image with overlays: **green = GT**, **red = BCP**, **blue = DGEM**.\nDice score is shown in the subtitle of each prediction column."),
+code("""
+import torch, torch.nn as nn, torch.nn.functional as F
+import numpy as np, h5py, random, os
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from pathlib import Path
+from networks import VNet
+from utils.metrics import sliding_window_inference, calculate_metric_percase
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+def load_model(ckpt_path, n_classes=2):
+    net = VNet(n_classes=n_classes, normalization='instancenorm', has_dropout=False)
+    net = nn.DataParallel(net).cuda()
+    state = torch.load(ckpt_path, map_location='cuda')
+    if isinstance(state, dict) and 'net' in state:
+        state = state['net']
+    net.load_state_dict(state)
+    net.eval()
+    return net
+
+def get_centroid(label):
+    coords = np.argwhere(label > 0)
+    if len(coords) == 0:
+        return tuple(s // 2 for s in label.shape)
+    return tuple(coords.mean(0).astype(int))
+
+def overlay(ax, img_sl, gt_sl, pred_sl, pred_color, title, dice=None):
+    ax.imshow(img_sl, cmap='gray', vmin=0, vmax=1, interpolation='bilinear')
+    # GT: green semi-transparent
+    if gt_sl.sum() > 0:
+        gt_rgba = np.zeros((*gt_sl.shape, 4))
+        gt_rgba[gt_sl > 0] = [0.0, 0.9, 0.2, 0.35]
+        ax.imshow(gt_rgba)
+    # Prediction: coloured contour fill
+    if pred_sl.sum() > 0:
+        pred_rgba = np.zeros((*pred_sl.shape, 4))
+        pred_rgba[pred_sl > 0] = [*pred_color, 0.55]
+        ax.imshow(pred_rgba)
+    lbl = title if dice is None else f'{title}\\nDice={dice:.3f}'
+    ax.set_title(lbl, fontsize=8, pad=3)
+    ax.axis('off')
+
+def ct_only(ax, img_sl, title):
+    ax.imshow(img_sl, cmap='gray', vmin=0, vmax=1, interpolation='bilinear')
+    ax.set_title(title, fontsize=8, pad=3)
+    ax.axis('off')
+
+# ── config ───────────────────────────────────────────────────────────────────
+N_CASES  = 4
+SEED     = 42
+BCP_CLR  = [1.0, 0.2, 0.1]   # red
+DGEM_CLR = [0.1, 0.4, 1.0]   # blue
+
+random.seed(SEED)
+with open(f'{SPLITS_DIR}/test.txt') as f:
+    all_cases = [l.strip() for l in f if l.strip()]
+cases = random.sample(all_cases, min(N_CASES, len(all_cases)))
+
+# ── load models ──────────────────────────────────────────────────────────────
+bcp_ckpt  = f'{BCP_SAVE}/best_model.pth'
+dgem_ckpt = f'{DGEM_SAVE}/best_model.pth'
+
+bcp_net  = load_model(bcp_ckpt)  if os.path.exists(bcp_ckpt)  else None
+dgem_net = load_model(dgem_ckpt) if os.path.exists(dgem_ckpt) else None
+
+if bcp_net is None:  print('WARNING: BCP checkpoint not found, skipping.')
+if dgem_net is None: print('WARNING: DGEM checkpoint not found, skipping.')
+
+# ── per-case figure ───────────────────────────────────────────────────────────
+VIEWS = ['Axial', 'Coronal', 'Sagittal']
+
+for case in cases:
+    with h5py.File(str(Path(DATA_ROOT) / case), 'r') as f:
+        image = f['image'][:].astype(np.float32)
+        label = f['label'][:].astype(np.uint8)
+
+    cx, cy, cz = get_centroid(label)
+
+    bcp_pred  = sliding_window_inference(bcp_net,  image, PATCH_SIZE, 16, 8, 2)[0].astype(np.uint8) if bcp_net  else np.zeros_like(label)
+    dgem_pred = sliding_window_inference(dgem_net, image, PATCH_SIZE, 16, 8, 2)[0].astype(np.uint8) if dgem_net else np.zeros_like(label)
+
+    bcp_dice  = calculate_metric_percase(bcp_pred,  label)[0]
+    dgem_dice = calculate_metric_percase(dgem_pred, label)[0]
+
+    # 3 views x 4 cols: [CT only | GT overlay | BCP | DGEM]
+    fig, axes = plt.subplots(3, 4, figsize=(14, 9))
+    fig.patch.set_facecolor('#111111')
+    fig.suptitle(f'Case: {Path(case).stem}   |   BCP Dice={bcp_dice:.3f}   DGEM Dice={dgem_dice:.3f}',
+                 fontsize=11, color='white', y=0.98)
+
+    for row, view in enumerate(VIEWS):
+        if view == 'Axial':
+            img_sl = image[:, :, cz];  gt_sl = label[:, :, cz]
+            bp_sl  = bcp_pred[:, :, cz]; dp_sl = dgem_pred[:, :, cz]
+        elif view == 'Coronal':
+            img_sl = image[:, cy, :];  gt_sl = label[:, cy, :]
+            bp_sl  = bcp_pred[:, cy, :]; dp_sl = dgem_pred[:, cy, :]
+        else:
+            img_sl = image[cx, :, :];  gt_sl = label[cx, :, :]
+            bp_sl  = bcp_pred[cx, :, :]; dp_sl = dgem_pred[cx, :, :]
+
+        ct_only(axes[row, 0], img_sl, f'{view} — CT')
+        overlay(axes[row, 1], img_sl, gt_sl, gt_sl,  [0.0, 0.9, 0.2], f'{view} — Ground Truth')
+        overlay(axes[row, 2], img_sl, gt_sl, bp_sl,  BCP_CLR,         f'{view} — BCP (SOTA)',  bcp_dice)
+        overlay(axes[row, 3], img_sl, gt_sl, dp_sl,  DGEM_CLR,        f'{view} — DGEM (ours)', dgem_dice)
+
+        for ax in axes[row]:
+            ax.set_facecolor('#111111')
+            for spine in ax.spines.values():
+                spine.set_edgecolor('#333333')
+
+    # Legend
+    legend_els = [
+        mpatches.Patch(color=[0.0, 0.9, 0.2], alpha=0.5, label='Ground Truth'),
+        mpatches.Patch(color=BCP_CLR,          alpha=0.6, label='BCP (SOTA)'),
+        mpatches.Patch(color=DGEM_CLR,         alpha=0.6, label='DGEM (ours)'),
+    ]
+    fig.legend(handles=legend_els, loc='lower center', ncol=3,
+               fontsize=9, framealpha=0.2, labelcolor='white',
+               facecolor='#222222', bbox_to_anchor=(0.5, 0.01))
+
+    plt.subplots_adjust(wspace=0.04, hspace=0.18, bottom=0.07)
+    out_path = f'{FIG_DIR}/qual_{Path(case).stem}.png'
+    plt.savefig(out_path, dpi=150, bbox_inches='tight', facecolor=fig.get_facecolor())
+    plt.show()
+    print(f'Saved: {out_path}')
+"""),
 
 md("## 10. TensorBoard"),
 code("%load_ext tensorboard\n%tensorboard --logdir {RESULT_ROOT}"),
