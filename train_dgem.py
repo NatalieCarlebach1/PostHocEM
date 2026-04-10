@@ -76,6 +76,11 @@ def get_args():
     p.add_argument('--ema_decay',           type=float, default=0.99,
                    help='EMA decay for the teacher model.')
 
+    # Optional: warm-start from a pretrained checkpoint (e.g. BCP)
+    p.add_argument('--pretrained_checkpoint', default=None,
+                   help='Path to a pretrained .pth (e.g. BCP best_model.pth). '
+                        'Both net and net_ema are initialised from it.')
+
     # Eval / save
     p.add_argument('--eval_every',     type=int,   default=10)
     p.add_argument('--save_dir',       default='result/dgem')
@@ -142,7 +147,15 @@ def train(args):
     # ── Models ───────────────────────────────────────────────────────────────
     net     = create_model(args.num_classes, ema=False)
     net_ema = create_model(args.num_classes, ema=True)
-    net_ema.load_state_dict(net.state_dict())   # start identical
+
+    if args.pretrained_checkpoint:
+        state = torch.load(args.pretrained_checkpoint, map_location='cuda')
+        if isinstance(state, dict) and 'net' in state:
+            state = state['net']
+        net.load_state_dict(state)
+        log.info(f'Warm-started from: {args.pretrained_checkpoint}')
+
+    net_ema.load_state_dict(net.state_dict())   # EMA starts identical to net
 
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr, weight_decay=1e-4)
     sup_loss_fn = SupLoss(args.num_classes)
