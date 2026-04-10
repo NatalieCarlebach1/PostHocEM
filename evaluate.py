@@ -27,8 +27,7 @@ import torch.nn as nn
 from pathlib import Path
 
 from networks import VNet
-from dataloaders import PancreasDataset
-from torch.utils.data import DataLoader
+from dataloaders import FullVolumeDataset
 from utils.metrics import evaluate
 
 
@@ -53,11 +52,10 @@ def get_args():
 
 def load_model(checkpoint_path, n_classes):
     net = VNet(n_channels=1, n_classes=n_classes,
-               normalization='instancenorm', has_dropout=False)
+               normalization='instancenorm', has_dropout=True)
     net = nn.DataParallel(net).cuda()
 
     state = torch.load(checkpoint_path, map_location='cuda')
-    # Handle different save formats
     if isinstance(state, dict):
         if 'net' in state:
             state = state['net']
@@ -68,9 +66,9 @@ def load_model(checkpoint_path, n_classes):
     return net
 
 
-def eval_one(checkpoint_path, test_loader, patch_size, n_classes):
+def eval_one(checkpoint_path, test_ds, patch_size, n_classes):
     net = load_model(checkpoint_path, n_classes)
-    dice, jc, hd, asd = evaluate(net, test_loader, patch_size=patch_size, n_classes=n_classes)
+    dice, jc, hd, asd = evaluate(net, test_ds, patch_size=patch_size, n_classes=n_classes)
     return dice, jc, hd, asd
 
 
@@ -91,20 +89,18 @@ def main():
     import os
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
-    test_ds = PancreasDataset(
+    # Full volumes for proper sliding-window evaluation (no random crops)
+    test_ds = FullVolumeDataset(
         data_root=args.data_root,
         split_file=args.test_file,
-        patch_size=args.patch_size,
-        augment=False
     )
-    test_loader = DataLoader(test_ds, batch_size=1, shuffle=False, num_workers=2)
     print(f'Test cases: {len(test_ds)}')
 
     if args.checkpoint:
         # ── Single checkpoint ─────────────────────────────────────────────
         print(f'\nEvaluating: {args.checkpoint}')
         dice, jc, hd, asd = eval_one(
-            args.checkpoint, test_loader, args.patch_size, args.num_classes)
+            args.checkpoint, test_ds, args.patch_size, args.num_classes)
         print_table([('checkpoint', dice, jc, hd, asd)])
 
     elif args.compare:
@@ -121,7 +117,7 @@ def main():
                 continue
             print(f'Evaluating [{label}]  {path}')
             dice, jc, hd, asd = eval_one(
-                path, test_loader, args.patch_size, args.num_classes)
+                path, test_ds, args.patch_size, args.num_classes)
             rows.append((label, dice, jc, hd, asd))
         print_table(rows)
 
