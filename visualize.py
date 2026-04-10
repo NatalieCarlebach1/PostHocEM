@@ -239,7 +239,7 @@ def plot_losses(result_dirs, out_dir):
 
 def load_model(ckpt_path, n_classes):
     net = VNet(n_channels=1, n_classes=n_classes,
-               normalization='instancenorm', has_dropout=False)
+               normalization='instancenorm', has_dropout=True)
     net = nn.DataParallel(net).cuda()
     state = torch.load(ckpt_path, map_location='cuda')
     if isinstance(state, dict):

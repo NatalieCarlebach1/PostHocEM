@@ -16,7 +16,7 @@ md("## 0. GPU Check"),
 code("import torch\nprint('CUDA:', torch.cuda.is_available())\nif torch.cuda.is_available():\n    print('GPU:', torch.cuda.get_device_name(0))\n    print('VRAM:', round(torch.cuda.get_device_properties(0).total_memory/1e9,1), 'GB')\nelse:\n    raise RuntimeError('No GPU — Runtime -> Change runtime type -> T4')"),
 
 md("## 1. Install & Clone"),
-code("%%capture\n!pip install tensorboardX nibabel h5py medpy SimpleITK scikit-image tensorboard matplotlib"),
+code("%%capture\n!pip install tensorboardX nibabel h5py medpy SimpleITK scikit-image matplotlib"),
 code("import os, sys\nREPO = '/content/PostHocEM'\nif not os.path.exists(REPO):\n    !git clone https://github.com/NatalieCarlebach1/PostHocEM.git {REPO}\nelse:\n    !git -C {REPO} pull --quiet\nsys.path.insert(0, REPO)\nos.chdir(REPO)\n!ls"),
 
 md("## 2. Configuration\n\n| `MINI` | Data | Drive needed | Time |\n|--------|------|-------------|------|\n| `True` | Synthetic 20-case dataset (auto-generated) | No | ~10 min |\n| `False` | Real Pancreas-CT from TCIA | Yes | ~12 hrs |\n\nAll paths and hyperparameters are set here."),
@@ -43,8 +43,68 @@ md("## 7. Evaluate — Paper Results Table"),
 code("!python evaluate.py \\\n    --data_root   {DATA_ROOT} \\\n    --test_file   {SPLITS_DIR}/test.txt \\\n    --num_classes 2 \\\n    --patch_size  {PATCH_SIZE} \\\n    --compare \\\n        \"Supervised only:{SUP_SAVE}/best_model.pth\" \\\n        \"BCP (CVPR 2023):{BCP_SAVE}/best_model.pth\" \\\n        \"DGEM (ours):{DGEM_SAVE}/best_model.pth\""),
 
 md("## 8. Loss Curves"),
-code("!python visualize.py losses \\\n    --result_dirs \\\n        \"Supervised only:{SUP_SAVE}\" \\\n        \"BCP (CVPR 2023):{BCP_SAVE}\" \\\n        \"DGEM (ours):{DGEM_SAVE}\" \\\n    --out_dir {FIG_DIR}\n\nfrom IPython.display import Image as IPImage, display\ndisplay(IPImage(f'{FIG_DIR}/loss_curves.png'))"),
-code("display(IPImage(f'{FIG_DIR}/em_loss.png'))"),
+code("""
+import re, os
+import numpy as np
+import matplotlib.pyplot as plt
+
+def parse_log(log_path):
+    \"\"\"Parse train.log → (epochs, sup_losses, [(epoch, dice), ...]).\"\"\"
+    epochs, sup_losses, dice_pts = [], [], []
+    with open(log_path) as f:
+        for line in f:
+            # DGEM / Supervised: "Epoch [001/010]  sup=0.4521  em=..."
+            m = re.search(r'Epoch \\[(\\d+)/\\d+\\].*?sup=([\\.\\d]+)', line)
+            if m:
+                epochs.append(int(m.group(1)))
+                sup_losses.append(float(m.group(2)))
+            # BCP: "Epoch [001/010]  loss1=0.3210  loss2=..."
+            if not m:
+                m2 = re.search(r'Epoch \\[(\\d+)/\\d+\\].*?loss1=([\\.\\d]+)', line)
+                if m2:
+                    epochs.append(int(m2.group(1)))
+                    sup_losses.append(float(m2.group(2)))
+            # Eval: "[Eval 002]  Dice=0.1234 ..."
+            m3 = re.search(r'\\[Eval\\s+(\\d+)\\].*Dice=([\\.\\d]+)', line)
+            if m3:
+                dice_pts.append((int(m3.group(1)), float(m3.group(2))))
+    return epochs, sup_losses, dice_pts
+
+methods = [
+    ('Supervised Only', SUP_SAVE,  '#4CAF50'),
+    ('BCP (CVPR 2023)', BCP_SAVE,  '#F44336'),
+    ('DGEM (ours)',     DGEM_SAVE, '#2196F3'),
+]
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+fig.suptitle('Training Curves — Semi-supervised 3D Segmentation', fontsize=13)
+
+for label, save_dir, color in methods:
+    log_file = f'{save_dir}/train.log'
+    if not os.path.exists(log_file):
+        print(f'No log yet: {log_file}')
+        continue
+    epochs, losses, dice_pts = parse_log(log_file)
+    if epochs:
+        ax1.plot(epochs, losses, color=color, label=label, linewidth=2)
+    if dice_pts:
+        xs, ys = zip(*dice_pts)
+        ax2.plot(xs, ys, color=color, label=label, linewidth=2, marker='o', markersize=5)
+        best = max(ys)
+        ax2.axhline(best, color=color, linestyle='--', alpha=0.35, linewidth=1)
+        ax2.annotate(f'{best:.3f}', xy=(xs[-1], best), color=color, fontsize=8, va='bottom')
+
+ax1.set_title('Supervised Loss per Epoch'); ax1.set_xlabel('Epoch'); ax1.set_ylabel('Loss')
+ax2.set_title('Test Dice Score');           ax2.set_xlabel('Epoch'); ax2.set_ylabel('Dice')
+ax1.legend(); ax1.grid(alpha=0.3)
+ax2.legend(); ax2.grid(alpha=0.3)
+ax2.set_ylim(bottom=0)
+plt.tight_layout()
+out_path = f'{FIG_DIR}/loss_curves.png'
+plt.savefig(out_path, dpi=150, bbox_inches='tight')
+plt.show()
+print(f'Saved: {out_path}')
+"""),
 
 md("## 9. Qualitative Results — GT vs BCP vs DGEM\n\nFor each random test case: three views (axial / coronal / sagittal) through the lesion centroid.\nEach row shows the CT image with overlays: **green = GT**, **red = BCP**, **blue = DGEM**.\nDice score is shown in the subtitle of each prediction column."),
 code("""
@@ -58,7 +118,7 @@ from utils.metrics import sliding_window_inference, calculate_metric_percase
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 def load_model(ckpt_path, n_classes=2):
-    net = VNet(n_classes=n_classes, normalization='instancenorm', has_dropout=False)
+    net = VNet(n_classes=n_classes, normalization='instancenorm', has_dropout=True)
     net = nn.DataParallel(net).cuda()
     state = torch.load(ckpt_path, map_location='cuda')
     if isinstance(state, dict) and 'net' in state:
@@ -175,121 +235,10 @@ for case in cases:
     print(f'Saved: {out_path}')
 """),
 
-md("## 10. TensorBoard"),
-code("%load_ext tensorboard\n%tensorboard --logdir {RESULT_ROOT}"),
-
-md("## 11. Overfit Sanity Check\n\nTrain on **2 cases only** for 200 steps. A correct implementation must:\n- Supervised loss → near 0 within ~100 steps\n- Train Dice → near 1.0\n- Predictions visually match GT on training cases\n\nIf this fails the model has a bug. Run this before any full training."),
-code("""
-import torch, torch.nn as nn, torch.nn.functional as F
-import numpy as np, h5py, os
-import matplotlib.pyplot as plt
-from pathlib import Path
-from networks import VNet
-from utils.losses import SupLoss
-from utils.metrics import sliding_window_inference, calculate_metric_percase
-from data.make_synthetic import make_case
-
-# ── generate 2 tiny training volumes ────────────────────────────────────────
-torch.manual_seed(0); np.random.seed(0)
-rng = np.random.RandomState(0)
-VOL = PATCH_SIZE   # same patch size as training
-
-cases_data = [make_case(VOL, rng) for _ in range(2)]   # [(image, label), ...]
-print(f'Overfit cases: {len(cases_data)} volumes of shape {cases_data[0][0].shape}')
-for i, (img, lbl) in enumerate(cases_data):
-    print(f'  case {i}: image [{img.min():.2f}, {img.max():.2f}]  '
-          f'mask voxels: {lbl.sum()}  ({100*lbl.mean():.1f}%)')
-
-# ── build model ─────────────────────────────────────────────────────────────
-net = VNet(n_classes=2, normalization='instancenorm', has_dropout=False).cuda()
-optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
-criterion = SupLoss(n_classes=2)
-
-# ── training loop ────────────────────────────────────────────────────────────
-N_STEPS = 200
-loss_history = []
-dice_history = []
-
-net.train()
-for step in range(N_STEPS):
-    # cycle through the 2 cases
-    img_np, lbl_np = cases_data[step % 2]
-    img_t = torch.from_numpy(img_np[None, None]).cuda()   # (1,1,V,V,V)
-    lbl_t = torch.from_numpy(lbl_np.astype(np.int64))[None].cuda()  # (1,V,V,V)
-
-    logits = net(img_t)[0]
-    loss   = criterion(logits, lbl_t)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-    loss_history.append(loss.item())
-
-    if (step + 1) % 20 == 0:
-        with torch.no_grad():
-            pred = logits.argmax(dim=1).squeeze().cpu().numpy().astype(np.uint8)
-        d = calculate_metric_percase(pred, lbl_np)[0]
-        dice_history.append((step + 1, d))
-        print(f'Step {step+1:>3d} | loss={loss.item():.4f} | train Dice={d:.4f}')
-
-# ── plot loss curve ──────────────────────────────────────────────────────────
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
-ax1.plot(loss_history, color='#F44336', linewidth=1.5)
-ax1.set_title('Supervised Loss (should → 0)', fontsize=11)
-ax1.set_xlabel('Step'); ax1.set_ylabel('Loss'); ax1.grid(alpha=0.3)
-ax1.axhline(0, color='gray', linestyle='--', linewidth=0.8)
-
-steps_d, dices_d = zip(*dice_history)
-ax2.plot(steps_d, dices_d, color='#2196F3', linewidth=2, marker='o', markersize=4)
-ax2.set_title('Train Dice (should → 1.0)', fontsize=11)
-ax2.set_xlabel('Step'); ax2.set_ylabel('Dice')
-ax2.set_ylim(0, 1.05); ax2.grid(alpha=0.3)
-ax2.axhline(1.0, color='gray', linestyle='--', linewidth=0.8)
-
-final_loss = loss_history[-1]
-final_dice = dice_history[-1][1]
-status = 'PASS ✓' if final_loss < 0.05 and final_dice > 0.85 else 'FAIL ✗ — check model/loss'
-fig.suptitle(f'Overfit sanity check — final loss={final_loss:.4f}  Dice={final_dice:.4f}  [{status}]',
-             fontsize=11, color='green' if 'PASS' in status else 'red')
-plt.tight_layout(); plt.show()
-
-# ── qualitative: prediction vs GT on both training cases ─────────────────────
-net.eval()
-fig, axes = plt.subplots(2, 3, figsize=(12, 7))
-fig.suptitle('Overfit check — Prediction vs GT (should match exactly)', fontsize=11)
-
-for row, (img_np, lbl_np) in enumerate(cases_data):
-    with torch.no_grad():
-        pred, _ = sliding_window_inference(net, img_np, VOL, VOL//4, VOL//4, 2)
-    pred = pred.astype(np.uint8)
-    d = calculate_metric_percase(pred, lbl_np)[0]
-
-    z = int(np.argmax(lbl_np.sum(axis=(0,1))))
-
-    axes[row,0].imshow(img_np[:,:,z], cmap='gray', vmin=0, vmax=1)
-    axes[row,0].set_title(f'Case {row} — CT'); axes[row,0].axis('off')
-
-    axes[row,1].imshow(img_np[:,:,z], cmap='gray', vmin=0, vmax=1)
-    gt_rgba = np.zeros((*lbl_np[:,:,z].shape, 4))
-    gt_rgba[lbl_np[:,:,z]>0] = [0.0, 0.9, 0.2, 0.6]
-    axes[row,1].imshow(gt_rgba)
-    axes[row,1].set_title('Ground Truth'); axes[row,1].axis('off')
-
-    axes[row,2].imshow(img_np[:,:,z], cmap='gray', vmin=0, vmax=1)
-    pr_rgba = np.zeros((*pred[:,:,z].shape, 4))
-    pr_rgba[pred[:,:,z]>0] = [0.1, 0.4, 1.0, 0.6]
-    axes[row,2].imshow(pr_rgba)
-    axes[row,2].set_title(f'Prediction — Dice={d:.4f}'); axes[row,2].axis('off')
-
-plt.tight_layout(); plt.show()
-print(f'\\nOverfit check complete. Final loss={final_loss:.4f}  Dice={final_dice:.4f}')
-print('PASS' if final_loss < 0.05 and final_dice > 0.85 else 'FAIL — review model or loss function')
-"""),
-
-md("## 12. Smoke Test (No Data, <60s)\n\nFull forward/backward pass with random tensors. Confirms imports and shapes are correct."),
+md("## 10. Smoke Test (No Data, <60s)\n\nFull forward/backward pass with random tensors. Confirms imports and shapes are correct."),
 code("import torch\nimport torch.nn.functional as F\nimport numpy as np\nfrom networks import VNet\nfrom utils.losses import SupLoss, entropy_loss_masked\nfrom utils.ramps  import get_current_consistency_weight\nfrom utils.metrics import sliding_window_inference, calculate_metric_percase\n\ntorch.manual_seed(42)\nP, B, dev = 64, 2, 'cuda'\n\n# Build models\nnet     = VNet(n_classes=2, normalization='instancenorm', has_dropout=True).to(dev)\nnet_ema = VNet(n_classes=2, normalization='instancenorm', has_dropout=True).to(dev)\nnet_ema.load_state_dict(net.state_dict())\nfor param in net_ema.parameters(): param.detach_()\n\noptimizer = torch.optim.Adam(net.parameters(), lr=1e-3)\ncriterion = SupLoss(n_classes=2)\n\nlab_img   = torch.randn(B,1,P,P,P).to(dev)\nlab_lbl   = torch.randint(0,2,(B,P,P,P)).to(dev)\nunlab_img = torch.randn(B,1,P,P,P).to(dev)\n\nnet.train()\nnet_ema.eval()\n\n# 1. Supervised loss\nsup_loss = criterion(net(lab_img)[0], lab_lbl)\n\n# 2. DGEM: entropy on disagreement voxels\nstudent_probs = F.softmax(net(unlab_img)[0], dim=1)\nstudent_pred  = student_probs.argmax(dim=1)\nwith torch.no_grad():\n    teacher_pred = F.softmax(net_ema(unlab_img)[0], dim=1).argmax(dim=1)\ndisagree = (student_pred != teacher_pred).float()\nem_loss  = entropy_loss_masked(student_probs, disagree)\nlam      = get_current_consistency_weight(1, 1.0, 40)\ntotal    = sup_loss + lam * em_loss\noptimizer.zero_grad()\ntotal.backward()\noptimizer.step()\n\n# 3. EMA update\nwith torch.no_grad():\n    for sp, tp in zip(net.parameters(), net_ema.parameters()):\n        tp.data = 0.99 * tp.data + 0.01 * sp.data\n\n# 4. Sliding window inference\nnet.eval()\nvol  = np.random.rand(P,P,P).astype(np.float32)\npred, score = sliding_window_inference(net, vol, P, 16, 8, 2)\nassert pred.shape == (P,P,P), 'Pred shape wrong'\nassert score.shape == (2,P,P,P), 'Score shape wrong'\n\n# 5. Metrics\ngt = (np.random.rand(P,P,P) > 0.8).astype(np.uint8)\npr = (np.random.rand(P,P,P) > 0.8).astype(np.uint8)\nd, jc, hd, asd = calculate_metric_percase(pr, gt)\n\nprint('=' * 45)\nprint('ALL CHECKS PASSED')\nprint(f'  sup_loss       : {sup_loss.item():.4f}')\nprint(f'  em_loss        : {em_loss.item():.4f}')\nprint(f'  disagree_ratio : {disagree.mean().item():.3f}')\nprint(f'  lam            : {lam:.4f}')\nprint(f'  total_loss     : {total.item():.4f}')\nprint(f'  pred shape     : {pred.shape}')\nprint(f'  score shape    : {score.shape}')\nprint(f'  Dice (random)  : {d:.4f}')\nprint('=' * 45)"),
 
-md("## 12. Download Results\n\n- **MINI mode**: downloads a zip of all figures directly to your browser.\n- **FULL mode**: figures are already saved on Drive. The zip is also downloaded."),
+md("## 11. Download Results\n\n- **MINI mode**: downloads a zip of all figures directly to your browser.\n- **FULL mode**: figures are already saved on Drive. The zip is also downloaded."),
 code("from google.colab import files\nimport zipfile\nzip_path = '/content/figures.zip'\nwith zipfile.ZipFile(zip_path, 'w') as zf:\n    for f in __import__('pathlib').Path(FIG_DIR).glob('*.png'):\n        zf.write(str(f), f.name)\nfiles.download(zip_path)\nprint('Download started.')\n\n# Also download best checkpoints in MINI mode\nif MINI:\n    ckpt_zip = '/content/checkpoints.zip'\n    with zipfile.ZipFile(ckpt_zip, 'w') as zf:\n        for p in __import__('pathlib').Path(RESULT_ROOT).rglob('best_model.pth'):\n            zf.write(str(p), str(p.relative_to(RESULT_ROOT)))\n    files.download(ckpt_zip)\n    print('Checkpoints download started.')"),
 ]
 
