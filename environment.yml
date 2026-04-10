@@ -1,0 +1,23 @@
+name: posthoc_em
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - cudatoolkit=11.8
+  - pip
+
+  - pip:
+    - torch==2.1.0+cu118 --index-url https://download.pytorch.org/whl/cu118
+    - torchvision==0.16.0+cu118 --index-url https://download.pytorch.org/whl/cu118
+    - tensorboardX
+    - nibabel
+    - h5py
+    - numpy
+    - scipy
+    - scikit-image
+    - medpy
+    - tqdm
+    - SimpleITK
