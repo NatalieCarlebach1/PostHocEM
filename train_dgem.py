@@ -44,7 +44,7 @@ from tensorboardX import SummaryWriter
 
 from networks import VNet
 from dataloaders import get_loaders, FullVolumeDataset
-from utils.losses import SupLoss, entropy_loss_masked
+from utils.losses import SupLoss, entropy_loss_masked, entropy_loss_full
 from utils.ramps  import get_current_consistency_weight
 from utils.metrics import evaluate
 
@@ -69,12 +69,19 @@ def get_args():
     p.add_argument('--num_workers',    type=int,   default=2)
 
     # DGEM-specific
-    p.add_argument('--em_weight',           type=float, default=1.0,
+    p.add_argument('--warmup_epochs',       type=int,   default=30,
+                   help='Supervised-only warmup before enabling EM loss.')
+    p.add_argument('--em_weight',           type=float, default=0.3,
                    help='Max weight of entropy loss. Set 0 for supervised-only baseline.')
-    p.add_argument('--consistency_rampup',  type=int,   default=40,
-                   help='Epochs to ramp up EM weight (sigmoid schedule).')
+    p.add_argument('--consistency_rampup',  type=int,   default=100,
+                   help='Epochs to ramp up EM weight AFTER warmup (sigmoid schedule).')
     p.add_argument('--ema_decay',           type=float, default=0.99,
                    help='EMA decay for the teacher model.')
+    p.add_argument('--mask_type',           default='disagreement',
+                   choices=['disagreement', 'full', 'random', 'soft'],
+                   help='Entropy mask strategy: disagreement (default), '
+                        'full (all voxels), random (random mask matching '
+                        'disagreement ratio), soft (teacher uncertainty).')
 
     # Optional: warm-start from a pretrained checkpoint (e.g. BCP)
     p.add_argument('--pretrained_checkpoint', default=None,
@@ -106,7 +113,7 @@ def seed_everything(seed):
 
 def create_model(n_classes, ema=False):
     model = VNet(n_channels=1, n_classes=n_classes,
-                 normalization='instancenorm', has_dropout=True)
+                 normalization='instancenorm', has_dropout=False)
     model = nn.DataParallel(model).cuda()
     if ema:
         for p in model.parameters():
@@ -144,6 +151,11 @@ def train(args):
     log, writer = setup_logging(args.save_dir)
     log.info(f'Args: {vars(args)}')
 
+    # ── CSV log ─────────────────────────────────────────────────────────────
+    csv_path = Path(args.save_dir) / 'metrics.csv'
+    with open(csv_path, 'w') as f:
+        f.write('epoch,sup_loss,em_loss,disagree_ratio,lam,mask_type,dice,jaccard,hd95,asd,best_dice\n')
+
     # ── Models ───────────────────────────────────────────────────────────────
     net     = create_model(args.num_classes, ema=False)
     net_ema = create_model(args.num_classes, ema=True)
@@ -157,7 +169,7 @@ def train(args):
 
     net_ema.load_state_dict(net.state_dict())   # EMA starts identical to net
 
-    optimizer = torch.optim.Adam(net.parameters(), lr=args.lr, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
     sup_loss_fn = SupLoss(args.num_classes)
 
     # ── Data ─────────────────────────────────────────────────────────────────
@@ -188,9 +200,12 @@ def train(args):
 
         ep_sup = ep_em = ep_disagree_ratio = 0.0
 
-        # Ramp EM weight
-        lam = get_current_consistency_weight(
-            epoch, args.em_weight, args.consistency_rampup)
+        # Ramp EM weight — zero during warmup, then sigmoid ramp
+        if epoch <= args.warmup_epochs:
+            lam = 0.0
+        else:
+            lam = get_current_consistency_weight(
+                epoch - args.warmup_epochs, args.em_weight, args.consistency_rampup)
 
         for lab_img, lab_lbl in lab_loader:
             lab_img = lab_img.cuda()
@@ -201,29 +216,43 @@ def train(args):
             sup_loss = sup_loss_fn(sup_out, lab_lbl)
 
             # ── Disagreement-guided entropy loss ──────────────────────────
-            try:
-                unlab_img, _ = next(unlab_iter)
-            except StopIteration:
-                unlab_iter = iter(unlab_loader)
-                unlab_img, _ = next(unlab_iter)
-            unlab_img = unlab_img.cuda()
+            em_loss = torch.tensor(0.0, device=sup_loss.device)
+            disagree_ratio = 0.0
 
-            # Student (net) forward — keep gradients
-            student_logits = net(unlab_img)[0]
-            student_probs  = F.softmax(student_logits, dim=1)
-            student_pred   = student_probs.argmax(dim=1)
+            if lam > 0:
+                try:
+                    unlab_img, _ = next(unlab_iter)
+                except StopIteration:
+                    unlab_iter = iter(unlab_loader)
+                    unlab_img, _ = next(unlab_iter)
+                unlab_img = unlab_img.cuda()
 
-            # Teacher (net_ema) forward — no gradients
-            with torch.no_grad():
-                teacher_probs = F.softmax(net_ema(unlab_img)[0], dim=1)
-                teacher_pred  = teacher_probs.argmax(dim=1)
+                # Student (net) forward — keep gradients
+                student_logits = net(unlab_img)[0]
+                student_probs  = F.softmax(student_logits, dim=1)
+                student_pred   = student_probs.argmax(dim=1)
 
-            # Disagreement mask: 1 where student ≠ teacher
-            disagree_mask = (student_pred != teacher_pred).float()
-            disagree_ratio = disagree_mask.mean().item()
+                # Teacher (net_ema) forward — no gradients
+                with torch.no_grad():
+                    teacher_probs = F.softmax(net_ema(unlab_img)[0], dim=1)
+                    teacher_pred  = teacher_probs.argmax(dim=1)
 
-            em_loss = entropy_loss_masked(student_probs, disagree_mask)
-            loss    = sup_loss + lam * em_loss
+                # Disagreement mask: 1 where student ≠ teacher
+                disagree_mask = (student_pred != teacher_pred).float()
+                disagree_ratio = disagree_mask.mean().item()
+
+                if args.mask_type == 'disagreement':
+                    em_loss = entropy_loss_masked(student_probs, disagree_mask)
+                elif args.mask_type == 'full':
+                    em_loss = entropy_loss_full(student_probs)
+                elif args.mask_type == 'random':
+                    random_mask = (torch.rand_like(disagree_mask) < disagree_ratio).float()
+                    em_loss = entropy_loss_masked(student_probs, random_mask)
+                elif args.mask_type == 'soft':
+                    soft_mask = 1.0 - teacher_probs.max(dim=1)[0]
+                    em_loss = entropy_loss_masked(student_probs, soft_mask)
+
+            loss = sup_loss + lam * em_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -241,10 +270,12 @@ def train(args):
             writer.add_scalar('train/lam',            lam,               global_step)
 
         n = len(lab_loader)
+        phase = 'warmup' if epoch <= args.warmup_epochs else 'dgem'
         log.info(
             f'Epoch [{epoch:03d}/{args.max_epochs}]  '
-            f'sup={ep_sup/n:.4f}  em={ep_em/n:.4f}  '
-            f'disagree={ep_disagree_ratio/n:.3f}  lam={lam:.4f}'
+            f'phase={phase}  sup={ep_sup/n:.4f}  em={ep_em/n:.4f}  '
+            f'disagree={ep_disagree_ratio/n:.3f}  lam={lam:.4f}  '
+            f'mask_type={args.mask_type}  lr={args.lr:.6f}'
         )
 
         # ── Evaluation ───────────────────────────────────────────────────────
@@ -268,6 +299,12 @@ def train(args):
                 torch.save(net_ema.state_dict(),
                            str(Path(args.save_dir) / 'best_ema_model.pth'))
                 log.info(f'  *** New best Dice={best_dice:.4f} — saved ***')
+
+            # ── CSV log ──────────────────────────────────────────────────
+            with open(csv_path, 'a') as f:
+                f.write(f'{epoch},{ep_sup/n:.6f},{ep_em/n:.6f},'
+                        f'{ep_disagree_ratio/n:.4f},{lam:.6f},{args.mask_type},'
+                        f'{dice:.6f},{jc:.6f},{hd:.4f},{asd:.4f},{best_dice:.6f}\n')
 
     log.info('=' * 60)
     log.info(f'Training complete. Best Dice: {best_dice:.4f}')

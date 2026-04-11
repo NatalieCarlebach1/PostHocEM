@@ -1,0 +1,9 @@
+data/pancreas_h5/
+data/raw/
+data/*.zip
+*.pyc
+__pycache__/
+result/
+figures/
+*.egg-info/
+.DS_Store

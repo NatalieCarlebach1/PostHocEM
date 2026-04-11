@@ -1,153 +1,159 @@
-# DGEM — Disagreement-Guided Entropy Minimization
+# DGEM / PEM — Post-hoc Entropy Minimization for SSL Medical Image Segmentation
 
-Semi-supervised 3D medical image segmentation for MIDL 2025.
+Semi-supervised 3D medical image segmentation for **MIDL 2026**.
 
-**Core idea:** Apply entropy minimization loss *only* on voxels where the
-student model and its EMA teacher disagree. This targets uncertainty exactly
-where it exists — no pseudo-labels, no thresholds, no copy-paste.
-
-## Method
-
-```
-For each unlabeled batch:
-    student_pred = argmax(softmax(net(x)))
-    teacher_pred = argmax(softmax(net_ema(x)))   # EMA, no gradient
-
-    disagree_mask = (student_pred ≠ teacher_pred)
-    L_em = mean_entropy(student_probs, where=disagree_mask)
-
-Total loss = L_sup(labeled) + λ(t) * L_em(unlabeled)
-```
-
-`λ(t)` ramps up from 0 → `em_weight` over `consistency_rampup` epochs
-(sigmoid schedule, same as Mean Teacher).
-
-## Why it works
-
-| Method | Where is unlabeled supervision applied? |
-|--------|-----------------------------------------|
-| Mean Teacher | All voxels (MSE between student/teacher) |
-| BCP | All voxels (pseudo-label CE + Dice) |
-| **DGEM** | **Only disagreement voxels (entropy minimization)** |
-
-Disagreement = uncertainty. Sharpening predictions exactly there avoids
-over-regularizing already-confident regions.
+**Core idea:** SSL methods leave prediction entropy on the table at convergence.
+A post-hoc entropy minimization (PEM) fine-tuning step — requiring zero
+pseudo-labels — consistently improves any SSL checkpoint by sharpening decision
+boundaries in minutes of training. The optional disagreement mask (DGEM)
+targets sharpening exactly where the student and EMA teacher disagree.
 
 ## Setup
 
 ```bash
-conda env create -f environment.yml
-conda activate posthoc_em
+conda activate ns-sam3   # or any env with PyTorch 2.0+ and CUDA
+pip install -r requirements.txt
 ```
 
 ## Data
 
-### 1. Download Pancreas-CT (NIH)
+### 1. Download Pancreas-CT images (TCIA)
 
-Register and download from TCIA:
-```
-https://wiki.cancerimagingarchive.net/display/Public/Pancreas-CT
-```
-- Dataset name: **Pancreas-CT**
-- 82 abdominal CT scans with pancreas segmentation labels
-- Labels: `https://zenodo.org/record/7860267` (Roth et al. labels)
+```bash
+# Install NBIA Data Retriever (Ubuntu)
+wget -P /tmp https://github.com/CBIIT/NBIA-TCIA/releases/download/nbia-data-retriever-4.4/nbia-data-retriever-4.4.2.deb
+sudo mkdir -p /usr/share/desktop-directories/
+sudo dpkg -i /tmp/nbia-data-retriever-4.4.2.deb
 
-### 2. Preprocess → H5
+# Download using the manifest file included in this repo
+/opt/nbia-data-retriever/nbia-data-retriever --cli \
+    Pancreas-CT-20200910.tcia \
+    -d data/raw \
+    -v -f --agree-to-license
+```
+
+### 2. Download segmentation labels
+
+```bash
+wget -P data/raw/labels/ \
+    "https://wiki.cancerimagingarchive.net/download/attachments/6261388/TCIA_pancreas_labels-02-05-2017.zip"
+cd data/raw/labels && unzip TCIA_pancreas_labels-02-05-2017.zip && cd ../../..
+```
+
+### 3. Preprocess DICOM → H5
+
+Resamples to isotropic 1mm, crops around pancreas (25-voxel pad), normalizes to [0,1]:
 
 ```bash
 python data/preprocess_pancreas.py \
-    --data_root  /path/to/Pancreas-CT/PANCREAS \
-    --label_root /path/to/pancreas_labels \
-    --output_dir /path/to/pancreas_h5
+    --input_format dicom \
+    --data_root data/raw/Pancreas-CT-20200910 \
+    --label_root data/raw/labels \
+    --output_dir data/pancreas_h5
 ```
 
-### 3. Generate splits
+### 4. Generate canonical splits
 
 ```bash
 python data/generate_splits.py \
-    --h5_dir        /path/to/pancreas_h5 \
-    --label_percent 20
+    --use_bcp_splits \
+    --splits_dir splits/pancreas
 ```
 
-This creates `splits/pancreas/train_lab_20.txt`, `train_unlab_20.txt`, `test.txt`.
+Creates the exact BCP/CoraNet splits: 18 test, 12 labeled (20%), 50 unlabeled.
 
 ## Training
 
-### DGEM (full method)
+### BCP Baseline (reproducing CVPR 2023)
+
+Two-phase training matching the original repo: 60 epochs CutMix pretrain + 200 epochs BCP self-train.
+
+```bash
+python train_bcp_baseline.py \
+    --data_root data/pancreas_h5 \
+    --splits_dir splits/pancreas \
+    --save_dir result/bcp_baseline
+```
+
+### DGEM (from scratch)
+
+30-epoch supervised warmup, then disagreement-guided entropy minimization:
 
 ```bash
 python train_dgem.py \
-    --data_root    /path/to/pancreas_h5 \
-    --splits_dir   splits/pancreas \
-    --label_percent 20 \
-    --max_epochs   300 \
-    --em_weight    1.0 \
-    --save_dir     result/dgem_20p
+    --data_root data/pancreas_h5 \
+    --splits_dir splits/pancreas \
+    --max_epochs 300 \
+    --save_dir result/dgem_20p
 ```
 
-### Supervised-only baseline (ablation: em_weight=0)
+### Post-hoc PEM on any checkpoint
 
-```bash
-python train_dgem.py \
-    --data_root    /path/to/pancreas_h5 \
-    --splits_dir   splits/pancreas \
-    --label_percent 20 \
-    --max_epochs   300 \
-    --em_weight    0.0 \
-    --save_dir     result/supervised_only
-```
-
-### Post-hoc EM on BCP checkpoint
+Fine-tune a converged checkpoint with entropy minimization on unlabeled data:
 
 ```bash
 python train_posthoc_em.py \
-    --checkpoint  /path/to/bcp_checkpoint.pth \
-    --data_root   /path/to/pancreas_h5 \
-    --split_file  splits/pancreas/train_unlab_20.txt \
-    --test_file   splits/pancreas/test.txt \
-    --epochs 5 --lr 1e-4
+    --checkpoint result/bcp_baseline/best_model.pth \
+    --data_root data/pancreas_h5 \
+    --splits_dir splits/pancreas \
+    --epochs 5 --lr 1e-4 \
+    --save_dir result/pem_on_bcp
 ```
 
-BCP checkpoint (20% Pancreas-CT):
+### Mask ablations (DGEM)
+
+```bash
+python train_dgem.py --mask_type full   --save_dir result/dgem_full ...
+python train_dgem.py --mask_type random --save_dir result/dgem_random ...
+python train_dgem.py --mask_type soft   --save_dir result/dgem_soft ...
 ```
-https://pan.baidu.com/s/1kGqRsEF4BX_yChKV3kMNVQ?pwd=hsjb
+
+### Visualization
+
+```bash
+python visualize_disagreement.py \
+    --checkpoint result/dgem_20p/best_model.pth \
+    --data_root data/pancreas_h5 \
+    --test_file splits/pancreas/test.txt
 ```
 
-## Ablations (paper Table 2)
+## Evaluation
 
-| Config | em_weight | consistency_rampup | ema_decay |
-|--------|-----------|--------------------|-----------|
-| Supervised only | 0.0 | — | — |
-| Full EM (no mask) | 1.0 | 40 | 0.99 |
-| **DGEM (ours)** | **1.0** | **40** | **0.99** |
-| DGEM, slow ramp | 1.0 | 80 | 0.99 |
-| DGEM, fast decay | 1.0 | 40 | 0.95 |
-
-## Baselines to compare
-
-All from SSL4MIS ([HiLab-git/SSL4MIS](https://github.com/HiLab-git/SSL4MIS)):
-- UA-MT (MICCAI 2019)
-- Cross-Teaching CNN+Transformer (MIDL 2022)
-- BCP (CVPR 2023) — `github.com/DeepMed-Lab-ECNU/BCP`
+```bash
+python evaluate.py \
+    --checkpoint result/bcp_baseline/best_model.pth \
+    --data_root data/pancreas_h5 \
+    --test_file splits/pancreas/test.txt
+```
 
 ## Repo structure
 
 ```
 PostHocEM/
-├── train_dgem.py          # Main DGEM training
-├── train_posthoc_em.py    # Post-hoc EM on existing checkpoints
+├── train_bcp_baseline.py      # BCP reproduction (2-phase, matches original)
+├── train_dgem.py              # DGEM training (warmup + disagreement EM)
+├── train_posthoc_em.py        # Post-hoc PEM on any checkpoint
+├── evaluate.py                # Standalone evaluation
+├── visualize_disagreement.py  # Qualitative figure generation
 ├── networks/
-│   └── vnet.py            # VNet (Milletari et al. 2016)
+│   └── vnet.py                # VNet (Milletari et al. 2016)
 ├── dataloaders/
-│   └── pancreas_loader.py # H5 dataset + augmentation
+│   └── pancreas_loader.py     # H5 dataset + augmentation + CenterCrop
 ├── utils/
-│   ├── losses.py          # SupLoss, entropy_loss_masked
-│   ├── ramps.py           # Sigmoid ramp-up schedule
-│   └── metrics.py         # Dice, HD95, sliding window inference
+│   ├── losses.py              # SupLoss, DiceLoss (per-sample, masked), entropy
+│   ├── ramps.py               # Sigmoid ramp-up schedule
+│   └── metrics.py             # Dice, HD95, sliding window inference
 ├── data/
-│   ├── preprocess_pancreas.py  # NIfTI → H5
-│   └── generate_splits.py      # Train/test/labeled splits
-├── splits/pancreas/       # Split text files (generated)
-├── environment.yml
-└── BCP/                   # Cloned for reference (not required)
+│   ├── download_pancreas.py   # Data download (TCIA/ssl4mis/synthetic)
+│   ├── preprocess_pancreas.py # DICOM/NIfTI → isotropic H5
+│   └── generate_splits.py     # Canonical BCP/CoraNet splits
+├── splits/pancreas/           # Train/test split files
+├── requirements.txt
+└── Pancreas-CT-20200910.tcia  # TCIA download manifest
 ```
+
+## References
+
+- BCP: Bai et al., "Bidirectional Copy-Paste for Semi-Supervised Medical Image Segmentation", CVPR 2023
+- DyCON: Assefa et al., "Dynamic Uncertainty-aware Consistency and Contrastive Learning", CVPR 2025
+- SSL4MIS: https://github.com/HiLab-git/SSL4MIS

@@ -98,8 +98,13 @@ def download_ssl4mis(out_dir: Path):
 
     print(f'Extracting to {out_dir} ...')
     import zipfile
-    with zipfile.ZipFile(str(zip_path), 'r') as zf:
-        zf.extractall(str(out_dir.parent))
+    import tarfile
+    if tarfile.is_tarfile(str(zip_path)):
+        with tarfile.open(str(zip_path), 'r:*') as tf:
+            tf.extractall(str(out_dir.parent))
+    else:
+        with zipfile.ZipFile(str(zip_path), 'r') as zf:
+            zf.extractall(str(out_dir.parent))
 
     h5_files = list(out_dir.glob('*.h5'))
     print(f'Done. Found {len(h5_files)} H5 files in {out_dir}')

@@ -1,107 +1,108 @@
-# PostHocEM — Post-hoc Entropy Minimization for SSL Medical Image Segmentation
+# DGEM / PEM — Disagreement-Guided Entropy Minimization for SSL Medical Image Segmentation
 
 ## Project Goal
 
-Short paper (4 pages) for MIDL 2025.
+Short paper (4 pages) for **MIDL 2026** (deadline: April 15, 2026 AoE).
 
-**Core claim:** SSL methods stop exploiting unlabeled data at convergence. A post-hoc entropy minimization fine-tuning step — requiring zero pseudo-labels — consistently improves any SSL checkpoint by sharpening decision boundaries in minutes of training.
+**Core claim:** SSL methods leave prediction entropy on the table at convergence. A post-hoc entropy minimization step (PEM) — requiring zero pseudo-labels — consistently improves any SSL checkpoint. The disagreement mask (DGEM) targets sharpening exactly where uncertainty exists.
 
-**Target benchmark:** SSL4MIS (Pancreas-CT NIH, 20% labeled) and LA dataset.
-**Baseline to beat:** BCP (CVPR 2023) — checkpoint available.
+**Target benchmark:** Pancreas-CT NIH, 20% labeled (BCP/CoraNet splits: 12 lab / 50 unlab / 18 test).
+**Baselines:** BCP (CVPR 2023), DyCON (CVPR 2025), MOST (MICCAI 2024).
 
 ---
 
 ## Method
 
-### Post-hoc Entropy Minimization (PEM)
+### Post-hoc Entropy Minimization (PEM) — Main contribution
 
 After any SSL method finishes training:
-
-1. Load the converged SSL checkpoint (e.g., BCP)
+1. Load the converged SSL checkpoint
 2. Fine-tune for 2-5 epochs on **unlabeled data only**
-3. Loss = entropy minimization: `L = -sum(p * log(p + eps))`
+3. Loss = entropy minimization on disagreement voxels (student vs EMA teacher)
 4. No pseudo-labels. No labels. No thresholds.
 
-```python
-probs = torch.softmax(model(unlabeled_vol), dim=1)
-loss = -(probs * torch.log(probs + 1e-8)).sum(dim=1).mean()
-```
+### DGEM — From-scratch training variant
 
-### Optional Extension: Disagreement-Masked EM
-
-Run BCP + Cross-Teaching checkpoints in parallel.
-Only apply entropy loss on voxels where the two models **disagree**:
-
-```python
-disagreement_mask = (bcp_pred != ct_pred).float()
-loss = (-(probs * torch.log(probs + 1e-8)).sum(dim=1) * disagreement_mask).mean()
-```
-
-This targets sharpening at uncertain regions only — avoiding overconfident collapse.
+Student + EMA teacher training with entropy loss applied only on disagreement voxels. Supports ablation with `--mask_type`: disagreement, full, random, soft.
 
 ---
 
-## Experiments
+## Architecture & Training Details
 
-### Datasets
-- **Pancreas-CT (NIH):** 82 cases, 62 train / 20 test, 20% labeled = ~12 labeled volumes
-- **LA (Left Atrium):** 100 cases, 80 train / 20 test, 20% labeled = 16 labeled volumes
+### Model
+- **VNet** (Milletari et al. 2016), instancenorm, `has_dropout=False`
+- Wrapped in `nn.DataParallel`
 
-### Baselines (all from SSL4MIS + BCP repo)
-- UA-MT (MICCAI 2019)
-- Cross-Teaching CNN+Transformer (MIDL 2022)
-- BCP (CVPR 2023) ← main baseline, checkpoint available
+### BCP Baseline (must match original exactly)
+- **Optimizer:** Adam, lr=1e-3, no weight decay, no LR schedule
+- **Phases:** 60 pretrain (CutMix labeled) + 200 self-train (full BCP) = 260 epochs
+- **CutMix cube:** 64³ within 96³ crop (corner-based positioning)
+- **Loss weights:** l_weight=1.0, u_weight=0.5 (original defaults)
+- **Dice loss:** Per-sample, masked per region (NOT micro, NOT composite)
+- **Pseudo-labels:** argmax + largest connected component (26-connected)
+- **Unlabeled data:** CenterCrop, no flip. Labeled: RandomCrop, no flip.
+- **EMA:** decay=0.99, ema_net in train() mode
+- **Batch size:** 2, num_workers=0
 
-### Ablations
-- Epochs: 1, 2, 3, 5, 10
-- Learning rate: 1e-4, 5e-5, 1e-5
-- With/without disagreement masking
-- Applied to different base checkpoints (UA-MT, Cross-Teaching, BCP)
+### DGEM
+- **Optimizer:** Adam, lr=1e-3
+- **Warmup:** 30 epochs supervised only, then EM ramps over 100 epochs
+- **EM weight:** 0.3 max
 
-### Metrics
-- Dice Score (%), Jaccard Index (%)
-- 95% Hausdorff Distance (HD95)
+### PEM (post-hoc)
+- **Optimizer:** Adam, lr=1e-4
+- **Epochs:** 5
+- **Loss:** entropy minimization on unlabeled data only
+
+---
+
+## Data
+
+### Pancreas-CT (NIH)
+- 80 valid cases (0025 and 0070 excluded as duplicates)
+- **Preprocessing (must match CoraNet/BCP):**
+  - Isotropic resampling to 1mm x 1mm x 1mm
+  - Bbox crop around pancreas + 25-voxel padding, min 96³
+  - HU clip [-125, 275], per-volume min-max normalization to [0,1]
+- **Splits (BCP/CoraNet canonical, hardcoded):**
+  - Test: 18 cases (0064-0082, excluding 0070)
+  - Labeled 20%: 12 cases (0001-0012)
+  - Unlabeled: 50 cases (0013-0063, excluding 0025)
+
+### Download
+1. TCIA images: NBIA Data Retriever CLI with `Pancreas-CT-20200910.tcia`
+2. Labels: `TCIA_pancreas_labels-02-05-2017.zip` from TCIA wiki
+3. BCP checkpoint: Baidu Pan (browser only, no CLI)
+
+---
+
+## Evaluation
+- Sliding window: patch=96³, stride_xy=16, stride_z=4
+- Metrics: Dice (%), Jaccard (%), HD95, ASD
+- No test-time augmentation (matching BCP/DyCON)
+
+## Target Numbers (Pancreas-CT 20%)
+
+| Method | Dice (%) | Source |
+|--------|----------|--------|
+| V-Net supervised | 69.96 | BCP paper |
+| UA-MT | 77.26 | BCP paper |
+| BCP | **82.91** | BCP paper |
+| DyCON | **84.81** | DyCON paper |
+| BCP + PEM (ours) | **>83.5** | Target |
 
 ---
 
 ## Key Resources
 
-### Checkpoints
-- **BCP Pancreas-CT 20%:** `https://pan.baidu.com/s/1kGqRsEF4BX_yChKV3kMNVQ?pwd=hsjb`
-- **SSL4MIS checkpoints:** inside `HiLab-git/SSL4MIS` repo
-
-### Base Repos to Build On
-- SSL4MIS: `https://github.com/HiLab-git/SSL4MIS`
-- BCP: `https://github.com/DeepMed-Lab-ECNU/BCP`
-
-### Data
-- Pancreas-CT (NIH): download via SSL4MIS instructions
-- LA dataset: download via SSL4MIS instructions
-- KiTS19 (optional extension): `/c/Users/Lenovo/kits19`
-
----
-
-## Paper Structure (4 pages MIDL short)
-
-1. **Introduction** (~0.5 page): SSL methods abandon unlabeled data at convergence. We propose PEM.
-2. **Method** (~0.75 page): Entropy minimization loss, disagreement masking extension.
-3. **Experiments** (~1.5 pages): Main results table + ablation table + 1 qualitative figure.
-4. **Conclusion** (~0.25 page)
-
----
+- BCP repo: https://github.com/DeepMed-Lab-ECNU/BCP
+- SSL4MIS: https://github.com/HiLab-git/SSL4MIS
+- CoraNet (splits/preprocess): https://github.com/koncle/CoraNet
+- MOST: https://github.com/CUHK-AIM-Group/MOST-SSL4MIS
+- DyCON: https://github.com/KU-CVML/DyCON
 
 ## Stack
 
-- Python, PyTorch
-- nibabel (for NIfTI loading)
-- SimpleITK (preprocessing)
-- CUDA GPU required
-- Build directly on BCP repo structure
-
-## Timeline (5 days)
-
-- Day 1: Setup repo, download checkpoints, run BCP baseline eval to verify numbers match paper
-- Day 2: Implement PEM fine-tuning loop, run on Pancreas-CT 20%
-- Day 3: Ablations (epochs, LR, disagreement masking), run on LA dataset
-- Day 4: Write paper, generate figures
-- Day 5: Polish, proofread, submit
+- Python 3.12, PyTorch 2.9+, CUDA
+- SimpleITK, nibabel, scipy, h5py, medpy, tensorboardX, matplotlib
+- Conda env: `ns-sam3`

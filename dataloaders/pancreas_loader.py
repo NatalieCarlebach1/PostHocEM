@@ -36,6 +36,29 @@ class RandomCrop3D:
                 label[x:x+p[0], y:y+p[1], z:z+p[2]])
 
 
+class CenterCrop3D:
+    def __init__(self, size):
+        self.size = size if isinstance(size, (tuple, list)) else (size, size, size)
+
+    def __call__(self, image, label):
+        p = self.size
+        w, h, d = image.shape
+
+        pw = max((p[0] - w) // 2 + 1, 0)
+        ph = max((p[1] - h) // 2 + 1, 0)
+        pd = max((p[2] - d) // 2 + 1, 0)
+        if pw or ph or pd:
+            image = np.pad(image, [(pw, pw), (ph, ph), (pd, pd)], mode='constant')
+            label = np.pad(label, [(pw, pw), (ph, ph), (pd, pd)], mode='constant')
+
+        w, h, d = image.shape
+        x = (w - p[0]) // 2
+        y = (h - p[1]) // 2
+        z = (d - p[2]) // 2
+        return (image[x:x+p[0], y:y+p[1], z:z+p[2]],
+                label[x:x+p[0], y:y+p[1], z:z+p[2]])
+
+
 class RandomFlip3D:
     def __call__(self, image, label):
         axes = [ax for ax in range(3) if np.random.rand() > 0.5]
@@ -57,7 +80,7 @@ class PancreasDataset(Dataset):
         repeat: artificially repeat labeled set to match unlabeled length
     """
     def __init__(self, data_root, split_file, patch_size=96,
-                 augment=True, repeat=1):
+                 augment=True, center_crop=False, repeat=1):
         self.data_root  = Path(data_root)
         self.patch_size = patch_size if isinstance(patch_size, tuple) else (patch_size,) * 3
         self.augment    = augment
@@ -66,7 +89,7 @@ class PancreasDataset(Dataset):
         with open(split_file) as f:
             self.cases = [l.strip() for l in f if l.strip()]
 
-        self.crop = RandomCrop3D(self.patch_size)
+        self.crop = CenterCrop3D(self.patch_size) if center_crop else RandomCrop3D(self.patch_size)
         self.flip = RandomFlip3D()
 
     def __len__(self):

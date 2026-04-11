@@ -10,7 +10,11 @@ Standard SSL4MIS split:
     20% labeled = 12 cases out of 62.
 
 Usage:
+    # Random split:
     python data/generate_splits.py --h5_dir /path/to/pancreas_h5
+
+    # BCP/CoraNet canonical split (deterministic, no h5_dir needed):
+    python data/generate_splits.py --use_bcp_splits
 """
 
 import argparse
@@ -18,29 +22,68 @@ import random
 from pathlib import Path
 
 
-def main():
-    p = argparse.ArgumentParser()
-    p.add_argument('--h5_dir',       required=True,
-                   help='Dir containing pancreas_XXX.h5 files')
-    p.add_argument('--splits_dir',   default='splits/pancreas')
-    p.add_argument('--n_test',       type=int, default=20)
-    p.add_argument('--label_percent',type=int, default=20)
-    p.add_argument('--seed',         type=int, default=2020)
-    args = p.parse_args()
+# ── BCP / CoraNet canonical splits ───────────────────────────────────────────
+# Cases 0025 and 0070 are excluded (known duplicates in the NIH dataset).
 
-    random.seed(args.seed)
-    h5_dir = Path(args.h5_dir)
-    splits_dir = Path(args.splits_dir)
+BCP_TEST = [64, 65, 66, 67, 68, 69, 71, 72, 73, 74,
+            75, 76, 77, 78, 79, 80, 81, 82]
+
+BCP_LABELED_20 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+BCP_UNLABELED_20 = [
+    13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+    26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+    40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
+    54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+]
+
+
+def _case_num_to_h5(num):
+    """Convert integer case number to h5 filename, e.g. 1 → 'pancreas_001.h5'."""
+    return f'pancreas_{num:03d}.h5'
+
+
+def write_split(path, cases):
+    with open(path, 'w') as f:
+        f.write('\n'.join(cases) + '\n')
+
+
+def generate_bcp_splits(splits_dir, label_percent=20):
+    """Write the deterministic BCP/CoraNet canonical split files."""
+    splits_dir = Path(splits_dir)
+    splits_dir.mkdir(parents=True, exist_ok=True)
+
+    test_cases  = [_case_num_to_h5(n) for n in BCP_TEST]
+    lab_cases   = [_case_num_to_h5(n) for n in BCP_LABELED_20]
+    unlab_cases = [_case_num_to_h5(n) for n in BCP_UNLABELED_20]
+
+    print(f'BCP canonical split (Pancreas-CT 20% labeled)')
+    print(f'  Train labeled   : {len(lab_cases)}')
+    print(f'  Train unlabeled : {len(unlab_cases)}')
+    print(f'  Test            : {len(test_cases)}')
+    print(f'  Excluded cases  : 0025, 0070')
+
+    write_split(splits_dir / f'train_lab_{label_percent}.txt',   lab_cases)
+    write_split(splits_dir / f'train_unlab_{label_percent}.txt', unlab_cases)
+    write_split(splits_dir / 'test.txt',                         test_cases)
+    print(f'\nSplit files saved to {splits_dir}/')
+
+
+def generate_random_splits(h5_dir, splits_dir, n_test, label_percent, seed):
+    """Write random split files (original behaviour)."""
+    random.seed(seed)
+    h5_dir = Path(h5_dir)
+    splits_dir = Path(splits_dir)
     splits_dir.mkdir(parents=True, exist_ok=True)
 
     all_cases = sorted([f.name for f in h5_dir.glob('*.h5')])
     print(f'Total cases found: {len(all_cases)}')
 
     random.shuffle(all_cases)
-    test_cases  = all_cases[:args.n_test]
-    train_cases = all_cases[args.n_test:]
+    test_cases  = all_cases[:n_test]
+    train_cases = all_cases[n_test:]
 
-    n_labeled = max(1, int(len(train_cases) * args.label_percent / 100))
+    n_labeled = max(1, int(len(train_cases) * label_percent / 100))
     lab_cases   = train_cases[:n_labeled]
     unlab_cases = train_cases[n_labeled:]
 
@@ -48,14 +91,32 @@ def main():
     print(f'Train unlabeled : {len(unlab_cases)}')
     print(f'Test            : {len(test_cases)}')
 
-    def write(path, cases):
-        with open(path, 'w') as f:
-            f.write('\n'.join(cases) + '\n')
-
-    write(splits_dir / f'train_lab_{args.label_percent}.txt',   lab_cases)
-    write(splits_dir / f'train_unlab_{args.label_percent}.txt', unlab_cases)
-    write(splits_dir / 'test.txt',                              test_cases)
+    write_split(splits_dir / f'train_lab_{label_percent}.txt',   lab_cases)
+    write_split(splits_dir / f'train_unlab_{label_percent}.txt', unlab_cases)
+    write_split(splits_dir / 'test.txt',                         test_cases)
     print(f'\nSplit files saved to {splits_dir}/')
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument('--h5_dir',       default=None,
+                   help='Dir containing pancreas_XXX.h5 files (not needed with --use_bcp_splits)')
+    p.add_argument('--splits_dir',   default='splits/pancreas')
+    p.add_argument('--n_test',       type=int, default=20)
+    p.add_argument('--label_percent',type=int, default=20)
+    p.add_argument('--seed',         type=int, default=2020)
+    p.add_argument('--use_bcp_splits', action='store_true',
+                   help='Use the deterministic BCP/CoraNet canonical splits '
+                        'instead of a random split. No --h5_dir needed.')
+    args = p.parse_args()
+
+    if args.use_bcp_splits:
+        generate_bcp_splits(args.splits_dir, args.label_percent)
+    else:
+        if args.h5_dir is None:
+            p.error('--h5_dir is required unless --use_bcp_splits is set')
+        generate_random_splits(args.h5_dir, args.splits_dir,
+                               args.n_test, args.label_percent, args.seed)
 
 
 if __name__ == '__main__':

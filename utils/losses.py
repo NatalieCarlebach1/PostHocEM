@@ -9,14 +9,23 @@ class DiceLoss(nn.Module):
         self.n_classes = n_classes
         self.smooth = smooth
 
-    def forward(self, logits, targets):
+    def forward(self, logits, targets, mask=None):
+        """Per-sample Dice loss, optionally masked.
+        mask: (B, W, H, D) float tensor — applied to both intersection and union.
+        """
         probs = F.softmax(logits, dim=1)                    # (B, C, W, H, D)
         targets_oh = F.one_hot(targets, self.n_classes)     # (B, W, H, D, C)
         targets_oh = targets_oh.permute(0, 4, 1, 2, 3).float()
 
-        dims = (0, 2, 3, 4)
-        inter = (probs * targets_oh).sum(dims)
-        union = (probs + targets_oh).sum(dims)
+        if mask is not None:
+            mask = mask.unsqueeze(1)  # (B, 1, W, H, D)
+            probs = probs * mask
+            targets_oh = targets_oh * mask
+
+        # Per-sample Dice: sum over spatial dims only, keep batch + class
+        dims = (2, 3, 4)
+        inter = (probs * targets_oh).sum(dims)              # (B, C)
+        union = (probs + targets_oh).sum(dims)              # (B, C)
         dice  = (2 * inter + self.smooth) / (union + self.smooth)
         return 1 - dice.mean()
 
