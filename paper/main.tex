@@ -187,6 +187,63 @@ On Pancreas-CT, full and confident modes are statistically equivalent because th
 \end{table}
 
 
+\subsection{Ablations}
+\vspace{-2pt}
+
+\tableref{tab:ablation} isolates the three hyperparameters of PEM on the LA 5\% checkpoint, the configuration where each axis is most informative.
+All ablations vary one knob and freeze the rest at our reported defaults.
+
+\textbf{Masking threshold $\tau$ (rows a).}
+Full-volume entropy minimization ($\tau{=}1$) on the LA checkpoint improves Dice by only $+0.51$, because the gradient is dominated by the $\sim$92\% saturated voxels whose entropy is already near zero and whose tiny gradient noise dilutes the boundary signal.
+Tightening the mask to $\tau{=}0.95$ increases the gain to $+1.39$ ($2.7\times$) and the HD95 reduction from $-30\%$ to $-44\%$, confirming that selective sharpening is the active ingredient on highly saturated checkpoints.
+Tighter ($\tau{=}0.999$, $0.99$) or looser ($\tau{=}0.9$) thresholds underperform, indicating that the gradient must be focused on the actual boundary shell (which the entropy-stat measurements in Tab.~\ref{tab:entropy} place at 6--8\% of voxels).
+
+\textbf{Learning rate (rows b).}
+PEM has a pronounced LR sweet spot.
+Below $5\!\times\!10^{-6}$ the unfrozen BatchNorm-affine parameters update too slowly to escape the local minimum, and the per-batch gradient noise dominates the signal: the test Dice drops by 0.6--1.0\% on the very first epoch and the collapse-protection safeguard ($\Delta\,{<}\,{-}0.5\%$) halts fine-tuning.
+Above $5\!\times\!10^{-5}$ (verified separately) the update is so large that the model loses calibration in one step.
+The two-order-of-magnitude window between these regimes is consistent with the structural argument that PEM is a calibration nudge on a converged optimum, not a retraining.
+
+\textbf{Epoch budget (rows c).}
+Improvement is monotonic up to $E{=}8$ (peak Dice 88.93, $\Delta\,{=}\,{+}1.61$) and then degrades as the entropy collapse begins to consume confident voxels.
+Our reported value at $E{=}5$ is conservative: it leaves $0.21$ Dice points on the table compared to the peak, but is fixed in advance (not selected from the test trajectory) and so introduces no test-set selection bias.
+
+\begin{table}[htbp]
+\vspace{-4pt}
+\floatconts
+  {tab:ablation}
+  {\caption{PEM ablations on LA 5\% (BCP baseline 87.32\,Dice / 13.91\,HD95). Each block varies one knob and fixes the rest at our defaults. $\dagger$ halted at epoch 1 by collapse protection ($\Delta < -0.5\%$). $\bigstar$ marks the configuration reported in Tab.~\ref{tab:main}.}}
+  {\small
+  \setlength{\tabcolsep}{6pt}
+  \begin{tabular}{lccc}
+  \toprule
+  \textbf{Configuration} & \textbf{Dice}$\uparrow$ & \textbf{HD95}$\downarrow$ & \textbf{$\Delta$Dice}$\uparrow$ \\
+  \midrule
+  \multicolumn{4}{l}{\textit{(a) Masking threshold $\tau$ \;\;(lr$=$1e-5, $E$$=$5)}} \\
+  Full ($\tau=1.0$)        & 87.83 & ~9.74  & $+$0.51 \\
+  Confident, $\tau=0.999$   & 87.48 & 10.52  & $+$0.16 \\
+  Confident, $\tau=0.99$    & 88.30 & ~9.46  & $+$0.98 \\
+  Confident, $\tau=0.95$\,$\bigstar$ & \textbf{88.72} & \textbf{7.77} & \textbf{$+$1.39} \\
+  Confident, $\tau=0.90$    & 88.56 & ~7.80  & $+$1.24 \\
+  \midrule
+  \multicolumn{4}{l}{\textit{(b) Learning rate \;\;($\tau{=}0.95$, $E$$=$5)}} \\
+  $\mathrm{lr}=10^{-7}$ $^\dagger$ & 86.33 & 12.10 & $-$1.00 \\
+  $\mathrm{lr}=5\!\times\!10^{-7}$ $^\dagger$ & 86.50 & 11.53 & $-$0.82 \\
+  $\mathrm{lr}=10^{-6}$ $^\dagger$ & 86.69 & 10.61 & $-$0.64 \\
+  $\mathrm{lr}=5\!\times\!10^{-6}$ & 88.24 & ~8.30 & $+$0.92 \\
+  $\mathrm{lr}=10^{-5}$\,$\bigstar$ & \textbf{88.72} & \textbf{7.77} & \textbf{$+$1.39} \\
+  \midrule
+  \multicolumn{4}{l}{\textit{(c) Epoch budget \;\;($\tau{=}0.95$, lr$=$1e-5)}} \\
+  $E=1$ & 87.75 & ~8.12 & $+$0.43 \\
+  $E=2$ & 88.14 & ~7.71 & $+$0.82 \\
+  $E=5$\,$\bigstar$ & 88.72 & ~7.77 & $+$1.39 \\
+  $E=8$ (peak)      & 88.93 & ~7.77 & $+$1.61 \\
+  $E=10$ (overshoot) & 88.35 & ~8.51 & $+$1.03 \\
+  \bottomrule
+  \end{tabular}}
+\vspace{-6pt}
+\end{table}
+
 % ══════════════════════════════════════════════════════════════════════════════
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
