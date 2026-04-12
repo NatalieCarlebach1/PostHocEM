@@ -109,6 +109,21 @@ Given an unlabeled volume $\mathbf{x}\in\mathcal{U}$ with voxel softmax outputs 
 $\tau\!=\!1$ recovers full-volume entropy minimization; $\tau\!<\!1$ restricts the loss to the boundary shell.
 PEM differs from training-time entropy minimization \citep{grandvalet2004entropy,sohn2020fixmatch} in two ways that matter empirically: (i) it operates on a converged checkpoint, where the residual entropy is already concentrated at decision boundaries (verified above), so the gradient signal is structurally aligned with the locus of error; (ii) it uses no labels, no pseudo-labels, no consistency regularizer, and no curriculum, so it cannot interfere with the base model's training dynamics or pseudo-label propagation.
 
+\paragraph{Theoretical grounding: cluster assumption at the organ surface.}
+The semi-supervised cluster assumption~\cite{chapelle2006ssl} states that classes form dense clusters in feature space and the optimal decision boundary should lie in low-density regions between them.
+Minimizing the conditional entropy $H(Y\mid X)$ on unlabeled data implements this principle by maximizing the classifier margin around its current decision surface~\cite{grandvalet2004entropy}.
+For a binary voxel classifier with logit $z$ and probability $p\!=\!\sigma(z)$, the entropy gradient is
+\begin{equation}
+    \frac{\partial H(p)}{\partial z} \;=\; -\,z\,p(1-p),
+    \label{eq:dHdz}
+\end{equation}
+so a gradient step in the direction of decreasing $H$ moves $|z|$ upward (sign-amplifying) with magnitude proportional to $p(1\!-\!p)$.
+Two consequences are specific to 3D segmentation.
+\textbf{First}, the update \textit{vanishes} at saturated voxels ($p\!\to\!0$ or $p\!\to\!1$) and is \textit{largest} at $p\!=\!0.5$, so the gradient signal of $\mathcal{L}_\text{PEM}$ is automatically gated to the boundary shell --- the $p(1\!-\!p)$ factor in Eq.~\ref{eq:dHdz} is the same boundary-shell mask that $\rho_f(0.99)$ measures, baked into the gradient itself with no need for an explicit threshold $\tau$.
+\textbf{Second}, in 3D segmentation the feature-space decision surface is spatially co-located with the \textit{organ surface}, because boundary voxels are precisely where the per-voxel feature distribution is bimodal (partial-volume averaging, scanner blur, anatomical variability).
+PEM is therefore not minimizing a generic entropy: it commits each boundary voxel to one side of its locally most likely contour, sliding the predicted organ surface along the low-density direction in feature space.
+This is also why PEM is unsafe in the diffuse-entropy regime (F1): when the feature-space boundary is \textit{not} aligned with the organ surface --- as in the supervised-only baseline --- sharpening propagates the base model's topological errors instead of refining a near-correct contour.
+
 \begin{table}[htbp]
 \vspace{-4pt}
 \floatconts
