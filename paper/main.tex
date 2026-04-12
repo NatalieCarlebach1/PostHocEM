@@ -185,6 +185,30 @@ Evaluating PEM on top of more recent SSL checkpoints, once available, is a natur
 On LA the \textit{confident}-mode masking wins by a clear margin --- it concentrates the gradient on the $\approx$6\% boundary shell while leaving the saturated interior untouched.
 On Pancreas-CT, full and confident modes are statistically equivalent because the gradient is already dominated by uncertain voxels; we therefore default to the simpler full mode there.
 
+\paragraph{Per-case statistical significance.}
+Because the test set is small ($N\!=\!18$ Pancreas, $N\!=\!20$ LA), we additionally treat each test volume as a paired observation $(\mathrm{Dice}_{\text{BCP}}^{(i)}, \mathrm{Dice}_{\text{BCP+PEM}}^{(i)})$ and report a paired analysis on $\Delta_i$.
+Across all three configurations, the per-case Wilcoxon signed-rank test rejects $H_0: \mathrm{median}(\Delta){=}0$ at $p\!<\!0.025$, the bias-corrected $95\%$ bootstrap CI on $\bar\Delta$ excludes zero by a comfortable margin, and PEM wins on $13$--$16$ of $18$--$20$ test cases (Tab.~\ref{tab:significance}).
+The paired effect size is moderate-to-large ($d_z \in [0.57, 0.71]$), consistent with a systematic boundary refinement rather than a few high-leverage outliers.
+
+\begin{table}[htbp]
+\vspace{-4pt}
+\floatconts
+  {tab:significance}
+  {\caption{Per-case paired significance of BCP$\to$BCP+PEM. $\bar\Delta$: mean per-case Dice improvement; $95\%$ CI by 10000-resample bias-corrected bootstrap on $\Delta_i$; $p$: Wilcoxon signed-rank, two-sided; $d_z$: paired Cohen's $d$; W/T/L: cases where PEM is better/equal/worse than BCP. All three configurations are significant at $p<0.025$ with bootstrap CI strictly above zero.}}
+  {\small
+  \setlength{\tabcolsep}{6pt}
+  \begin{tabular}{lccccc}
+  \toprule
+  \textbf{Setting} & $N$ & $\bar\Delta\,(\%)$ & $95\%$ CI on $\bar\Delta$ & Wilcoxon $p$ & $d_z$ \;\;\; W/T/L \\
+  \midrule
+  Pancreas-CT 20\% & 18 & $+1.12$ & $[+0.44,\;+1.85]$ & $1.2\!\times\!10^{-2}$ & $+0.71$ \;\;\; 13/0/5 \\
+  LA 5\%           & 20 & $+1.43$ & $[+0.47,\;+2.40]$ & $2.2\!\times\!10^{-2}$ & $+0.62$ \;\;\; 14/0/6 \\
+  LA 10\%          & 20 & $+0.64$ & $[+0.18,\;+1.13]$ & $1.1\!\times\!10^{-2}$ & $+0.57$ \;\;\; 16/0/4 \\
+  \bottomrule
+  \end{tabular}}
+\vspace{-6pt}
+\end{table}
+
 \begin{table}[htbp]
 \vspace{-4pt}
 \floatconts
