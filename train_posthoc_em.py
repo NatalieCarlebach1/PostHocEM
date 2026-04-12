@@ -297,7 +297,7 @@ def main():
             splits_dir / f'train_unlab_{args.label_percent}.txt',
             patch_size=args.patch_size)
         unlab_loader = torch.utils.data.DataLoader(
-            unlab_ds, batch_size=args.batch_size, shuffle=False,
+            unlab_ds, batch_size=args.batch_size, shuffle=True,
             num_workers=0, pin_memory=True, drop_last=True)
         test_ds = _LAFullVolume(
             args.la_data_root, str(splits_dir / 'test.txt'))
@@ -317,7 +317,7 @@ def main():
                 splits_dir / f'train_unlab_{args.label_percent}.txt',
                 patch_size=args.patch_size, augment=False, center_crop=True)
             unlab_loader = torch.utils.data.DataLoader(
-                unlab_ds, batch_size=args.batch_size, shuffle=False,
+                unlab_ds, batch_size=args.batch_size, shuffle=True,
                 num_workers=0, pin_memory=True, drop_last=True)
 
         test_ds = FullVolumeDataset(

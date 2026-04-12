@@ -156,12 +156,14 @@ def find_best_improvement_case(cfg):
         cache[case] = (image, label, b_pred, p_pred)
         print(f'  {case}: BCP={dice_b:.4f}  PEM={dice_p:.4f}  Δ={delta:+.4f}')
 
-    deltas.sort(key=lambda x: -x[3])
-    best = deltas[0]
-    print(f'\n  → BEST: {best[0]}  Δ={best[3]:+.4f}')
+    # Median-case selection (avoids cherry-picking; reviewer-defensible)
+    deltas.sort(key=lambda x: x[3])
+    median = deltas[len(deltas) // 2]
+    print(f'\n  → MEDIAN: {median[0]}  Δ={median[3]:+.4f}  '
+          f'(min={deltas[0][3]:+.4f}, max={deltas[-1][3]:+.4f})')
 
-    image, label, b_pred, p_pred = cache[best[0]]
-    return best, image, label, b_pred, p_pred
+    image, label, b_pred, p_pred = cache[median[0]]
+    return median, image, label, b_pred, p_pred
 
 
 # ─── Slice picker ────────────────────────────────────────────────────────────
