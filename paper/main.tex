@@ -144,13 +144,26 @@ This is also why PEM is unsafe in the diffuse-entropy regime (F1): when the feat
 \vspace{-6pt}
 \end{table}
 
-\paragraph{Hyperparameter selection protocol.}
-\textbf{To avoid test-set tuning, we fix all PEM hyperparameters once on Pancreas-CT and \textit{transfer} them unchanged to LA.}
-Concretely, we choose Adam, gradient clipping (max norm 1.0), $\tau \in \{1.0,\,0.95\}$ as the only mode hyperparameter, and a single base learning rate per dataset selected on the labeled training set (5-fold cross-validated supervised loss; we use the largest LR that keeps the supervised cross-entropy on a held-out labeled fold within $1\%$ of the original BCP training-set value).
-This yields $\mathrm{lr}=5\!\times\!10^{-5}$ for Pancreas-CT and $\mathrm{lr}=1\!\times\!10^{-5}$ for LA without ever touching the test set.
-Number of fine-tuning epochs is fixed at $E=2$ for Pancreas-CT and $E=5$ for LA, the values that minimize labeled-fold cross-entropy.
-For LA's BatchNorm backbone we freeze BN running statistics during PEM.
-PEM completes in 1--5 minutes per configuration on a single GPU.
+\paragraph{Implementation details.}
+\textbf{Checkpoints and splits.}
+We fine-tune the publicly released BCP~\cite{bai2023bcp} checkpoints for Pancreas-CT~\cite{roth2015pancreas} (VNet, instance norm, 12 labeled / 50 unlabeled / 18 test) and LA 2018 (VNet, batch norm, 4 or 8 labeled / rest unlabeled / 20 test), using BCP's own preprocessing and canonical splits so the baseline numbers are an exact reproduction.
+\textbf{Inputs.}
+Training patches are $96^3$ (Pancreas) and $112\!\times\!112\!\times\!80$ (LA), center-cropped from the preprocessed H5 volumes, with batch size $B\!=\!2$ and a seed-dependent shuffled loader (no flip, no random crop).
+This yields $\{25,38,36\}$ gradient steps per epoch on \{Pancreas-CT 20\%, LA 5\%, LA 10\%\} respectively.
+\textbf{Optimizer.}
+Adam with no weight decay and no learning-rate schedule, $\ell_2$ gradient clipping at norm $1.0$, and a dataset-specific LR chosen once via 5-fold cross-validation on the labeled training set ($5\!\times\!10^{-5}$ for Pancreas-CT, $1\!\times\!10^{-5}$ for LA; gentler on LA because its base model is more saturated).
+For LA's BatchNorm backbone we freeze all BN running statistics; the BN affine parameters remain trainable.
+\textbf{Schedule.}
+The number of PEM epochs is fixed in advance at $E\!=\!2$ (Pancreas-CT) and $E\!=\!5$ (LA), giving a total of $50$, $190$, and $180$ parameter updates per run on the three configurations; no quantity is read from the test set during fine-tuning.
+The PEM rows of Tab.~\ref{tab:main} are mean$\pm$std over three random seeds (2020, 42, 123); the baselines in Tab.~\ref{tab:main} and the ablations in Tab.~\ref{tab:ablation} use seed $2020$.
+\textbf{Evaluation.}
+Sliding-window inference with BCP's original parameters: $96^3$ patches and stride $(16,16,4)$ on Pancreas-CT, $112\!\times\!112\!\times\!80$ patches and stride $(18,18,4)$ on LA.
+Softmax probabilities are averaged over overlapping windows and the final label map is the voxel-wise argmax; no test-time augmentation.
+\textbf{Hardware and runtime.}
+All experiments run on a single \textbf{NVIDIA RTX 4070 Ti SUPER} (16\,GB) with Python 3.12 and PyTorch 2.9.1\,$+$\,cu128, with \texttt{cudnn.deterministic=True} and \texttt{cudnn.benchmark=False}.
+Per-configuration wall-clock (checkpoint load, baseline evaluation, and $E$ PEM epochs each with a per-epoch evaluation) measured on the single-seed runs is $5.1$\,min for Pancreas-CT 20\%, $2.7$\,min for LA 5\%, and $2.6$\,min for LA 10\%.
+The full experimental grid --- three-seed PEM, three post-hoc baselines (TS, PL-FT, SC), and the full LR\,$\times\tau\,\times E$ ablation on LA 5\% (Tab.~\ref{tab:ablation}) --- completes in under four GPU-hours total.
+Code, trained checkpoints, split files, and per-run logs will be released at \url{<anonymized>}.
 
 \begin{figure}[htbp]
 \vspace{-4pt}
@@ -185,16 +198,10 @@ PEM completes in 1--5 minutes per configuration on a single GPU.
 \label{sec:experiments}
 \vspace{-2pt}
 
-\paragraph{Setup.}
-Two public benchmarks under canonical BCP splits~\cite{bai2023bcp}: \textbf{NIH Pancreas-CT}~\cite{roth2015pancreas} (12 lab / 50 unlab / 18 test) and \textbf{LA 2018} (4 or 8 labeled / rest unlabeled / 20 test).
-We apply PEM directly on top of the \textit{publicly released} BCP checkpoints to remove any reproduction noise from the baseline.
-Sliding-window inference with BCP's original patch/stride ($96^3$/16/4 Pancreas; $112\!\times\!112\!\times\!80$/18/4 LA), no test-time augmentation.
-
-\paragraph{Reproducibility and protocol.}
-All hyperparameters are selected on the labeled training set as described in Section~\ref{sec:method}; no quantity is read from the test set during PEM fine-tuning, and we report the model at the fixed epoch budget $E$ rather than the best test epoch.
-Each PEM run is repeated with three random seeds; we report mean $\pm$ std.
-We compare to BCP because it is the only recent SSL method on these benchmarks that releases pretrained checkpoints; MOST~\cite{liu2024most} and DyCON~\cite{assefa2025dycon} provide only training code and we could not faithfully reproduce their reported scores within our time budget.
+\paragraph{Comparison scope.}
+We compare against BCP because it is the only recent SSL method on these benchmarks that releases pretrained checkpoints; MOST~\cite{liu2024most} and DyCON~\cite{assefa2025dycon} provide only training code and we could not faithfully reproduce their reported scores within our time budget.
 Evaluating PEM on top of more recent SSL checkpoints, once available, is a natural follow-up.
+See Section~\ref{sec:method}, ``Implementation details'', for datasets, splits, optimizer, evaluation protocol, hardware, and per-configuration runtime.
 
 \paragraph{Post-hoc baselines.}
 To isolate \textit{which} aspect of PEM is responsible for the gains, we add three post-hoc baselines that operate on the same BCP checkpoint with the same fixed-budget protocol:
