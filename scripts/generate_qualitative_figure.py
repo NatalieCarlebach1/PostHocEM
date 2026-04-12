@@ -188,16 +188,37 @@ def overlay(ax, image_slice, mask_slice, color, alpha=0.5, lw=1.5):
     ax.set_xticks([]); ax.set_yticks([])
 
 
+def save_panel(image_slice, mask_slice, color, out_path, label_text=None):
+    """Save a single tight panel as PNG. No axes, no padding, no title."""
+    h, w = image_slice.T.shape
+    fig, ax = plt.subplots(figsize=(w/100, h/100), dpi=200)
+    ax.imshow(image_slice.T, cmap='gray', origin='lower',
+              vmin=image_slice.min(), vmax=image_slice.max())
+    if mask_slice is not None and mask_slice.any():
+        cmap = ListedColormap([(0, 0, 0, 0), color])
+        ax.imshow(mask_slice.T, cmap=cmap, origin='lower',
+                  alpha=0.5, vmin=0, vmax=1)
+        ax.contour(mask_slice.T, levels=[0.5], colors=[color],
+                   linewidths=1.4, origin='lower')
+    if label_text:
+        ax.text(0.02, 0.96, label_text,
+                transform=ax.transAxes, color='white', fontsize=14,
+                va='top', fontweight='bold',
+                bbox=dict(facecolor='black', alpha=0.55,
+                          edgecolor='none', pad=2))
+    ax.set_xticks([]); ax.set_yticks([])
+    ax.set_axis_off()
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    fig.savefig(str(out_path), dpi=200, bbox_inches='tight', pad_inches=0)
+    plt.close(fig)
+
+
 def main():
     out_dir = ROOT / 'paper' / 'figures'
-    out_dir.mkdir(parents=True, exist_ok=True)
+    panels_dir = out_dir / 'panels'
+    panels_dir.mkdir(parents=True, exist_ok=True)
 
-    fig, axes = plt.subplots(len(CONFIGS), 4,
-                              figsize=(11, 3 * len(CONFIGS)))
-    if len(CONFIGS) == 1:
-        axes = axes[np.newaxis, :]
-
-    col_titles = ['Image', 'Ground Truth', 'BCP', 'BCP + PEM (ours)']
+    summary = []  # for LaTeX include hints
 
     for r, cfg in enumerate(CONFIGS):
         try:
@@ -213,39 +234,46 @@ def main():
         b_sl   = b_pred[:, :, z]
         p_sl   = p_pred[:, :, z]
 
-        # Column 0: image
-        axes[r, 0].imshow(img_sl.T, cmap='gray', origin='lower',
-                          vmin=img_sl.min(), vmax=img_sl.max())
-        axes[r, 0].set_xticks([]); axes[r, 0].set_yticks([])
-        axes[r, 0].set_ylabel(cfg['name'], fontsize=12, fontweight='bold')
+        # Slug for file naming
+        slug = cfg['name'].lower().replace(' ', '_').replace('%', 'pct').replace('-', '_')
 
-        # Column 1: ground truth
-        overlay(axes[r, 1], img_sl, gt_sl, color='lime', alpha=0.45)
+        # Save the four panels
+        save_panel(img_sl, None, None,
+                   panels_dir / f'{slug}_image.png')
+        save_panel(img_sl, gt_sl, 'lime',
+                   panels_dir / f'{slug}_gt.png')
+        save_panel(img_sl, b_sl, 'red',
+                   panels_dir / f'{slug}_bcp.png',
+                   label_text=f'{dice_b*100:.2f}')
+        save_panel(img_sl, p_sl, 'cyan',
+                   panels_dir / f'{slug}_pem.png',
+                   label_text=f'{dice_p*100:.2f} ({delta*100:+.2f})')
 
-        # Column 2: BCP prediction
-        overlay(axes[r, 2], img_sl, b_sl, color='red', alpha=0.45)
-        axes[r, 2].text(0.02, 0.95, f'Dice {dice_b*100:.2f}',
-                        transform=axes[r, 2].transAxes, color='white',
-                        fontsize=9, va='top',
-                        bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', pad=2))
+        summary.append((cfg['name'], slug, case_name, dice_b, dice_p, delta))
+        print(f'  ✓ saved 4 panels for {cfg["name"]} (slug={slug})')
 
-        # Column 3: BCP+PEM prediction
-        overlay(axes[r, 3], img_sl, p_sl, color='cyan', alpha=0.45)
-        axes[r, 3].text(0.02, 0.95, f'Dice {dice_p*100:.2f} ({delta*100:+.2f})',
-                        transform=axes[r, 3].transAxes, color='white',
-                        fontsize=9, va='top',
-                        bbox=dict(facecolor='black', alpha=0.5, edgecolor='none', pad=2))
-
-    for c, t in enumerate(col_titles):
-        axes[0, c].set_title(t, fontsize=12)
-
-    plt.tight_layout()
-    out_path = out_dir / 'qualitative.png'
-    fig.savefig(str(out_path), dpi=200, bbox_inches='tight')
-    fig.savefig(str(out_dir / 'qualitative.pdf'), bbox_inches='tight')
-    plt.close(fig)
-    print(f'\n✓ saved {out_path}')
-    print(f'✓ saved {out_dir / "qualitative.pdf"}')
+    # Print LaTeX snippet for the user
+    print('\n' + '=' * 70)
+    print('LaTeX include block (paste into paper/main.tex):')
+    print('=' * 70)
+    print(r'\begin{figure}[htbp]')
+    print(r'\floatconts')
+    print(r'  {fig:qualitative}')
+    print(r'  {\caption{Qualitative comparison on the test case with the largest PEM improvement for each configuration. Columns: input image, ground truth (green), BCP baseline (red), BCP+PEM (cyan). Per-case Dice is overlaid in each prediction panel; the value in parentheses is the PEM gain over BCP.}}')
+    print(r'  {%')
+    print(r'    \setlength{\tabcolsep}{1pt}%')
+    print(r'    \renewcommand{\arraystretch}{0.2}%')
+    print(r'    \begin{tabular}{@{}cccc@{}}')
+    print(r'      \footnotesize Image & \footnotesize Ground Truth & \footnotesize BCP & \footnotesize BCP + PEM (ours) \\')
+    for name, slug, case, dice_b, dice_p, delta in summary:
+        print(rf'      \includegraphics[width=0.23\linewidth]{{figures/panels/{slug}_image}} &')
+        print(rf'      \includegraphics[width=0.23\linewidth]{{figures/panels/{slug}_gt}} &')
+        print(rf'      \includegraphics[width=0.23\linewidth]{{figures/panels/{slug}_bcp}} &')
+        print(rf'      \includegraphics[width=0.23\linewidth]{{figures/panels/{slug}_pem}} \\')
+        print(rf'      \multicolumn{{4}}{{c}}{{\footnotesize \textit{{{name}}}}} \\')
+    print(r'    \end{tabular}%')
+    print(r'  }')
+    print(r'\end{figure}')
 
 
 if __name__ == '__main__':

@@ -2,6 +2,7 @@
 
 \usepackage{booktabs}
 \usepackage{multirow}
+\usepackage{xcolor}
 
 \jmlrproceedings{MIDL}{Medical Imaging with Deep Learning}
 \jmlrpages{}
@@ -133,8 +134,29 @@ On Pancreas-CT, full and confident modes are equivalent because the gradient is 
 \begin{figure}[htbp]
 \floatconts
   {fig:qualitative}
-  {\caption{Qualitative comparison on the test case with the largest PEM improvement for each configuration: \textbf{Pancreas-CT 20\%} (top, $+$4.39 Dice), \textbf{LA 5\%} (middle, $+$5.64 Dice), and \textbf{LA 10\%} (bottom, $+$3.70 Dice). Columns: input image, ground truth, BCP baseline, BCP $+$ PEM. PEM tightens the predicted boundary toward the ground truth, removing spurious predictions and refining ambiguous edges. Per-case Dice is overlaid in each prediction panel.}}
-  {\includegraphics[width=0.95\linewidth]{figures/qualitative}}
+  {\caption{Qualitative comparison on the test case with the largest PEM improvement for each configuration. Columns: input image, ground truth (\textcolor{green!60!black}{green}), BCP baseline (\textcolor{red}{red}), BCP $+$ PEM (\textcolor{cyan!70!blue}{cyan}). Per-case Dice is overlaid in each prediction panel; the value in parentheses is the PEM gain over BCP.}}
+  {%
+    \setlength{\tabcolsep}{1pt}%
+    \renewcommand{\arraystretch}{0.2}%
+    \begin{tabular}{@{}cccc@{}}
+      \footnotesize Image & \footnotesize Ground Truth & \footnotesize BCP & \footnotesize BCP $+$ PEM (ours) \\
+      \includegraphics[width=0.235\linewidth]{figures/panels/pancreas_ct_20pct_image} &
+      \includegraphics[width=0.235\linewidth]{figures/panels/pancreas_ct_20pct_gt} &
+      \includegraphics[width=0.235\linewidth]{figures/panels/pancreas_ct_20pct_bcp} &
+      \includegraphics[width=0.235\linewidth]{figures/panels/pancreas_ct_20pct_pem} \\
+      \multicolumn{4}{c}{\footnotesize \textit{Pancreas-CT 20\%}} \\
+      \includegraphics[width=0.235\linewidth]{figures/panels/la_5pct_image} &
+      \includegraphics[width=0.235\linewidth]{figures/panels/la_5pct_gt} &
+      \includegraphics[width=0.235\linewidth]{figures/panels/la_5pct_bcp} &
+      \includegraphics[width=0.235\linewidth]{figures/panels/la_5pct_pem} \\
+      \multicolumn{4}{c}{\footnotesize \textit{LA 5\%}} \\
+      \includegraphics[width=0.235\linewidth]{figures/panels/la_10pct_image} &
+      \includegraphics[width=0.235\linewidth]{figures/panels/la_10pct_gt} &
+      \includegraphics[width=0.235\linewidth]{figures/panels/la_10pct_bcp} &
+      \includegraphics[width=0.235\linewidth]{figures/panels/la_10pct_pem} \\
+      \multicolumn{4}{c}{\footnotesize \textit{LA 10\%}} \\
+    \end{tabular}%
+  }
 \end{figure}
 
 % ══════════════════════════════════════════════════════════════════════════════
