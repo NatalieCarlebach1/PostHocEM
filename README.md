@@ -117,11 +117,44 @@ python visualize_disagreement.py \
     --test_file splits/pancreas/test.txt
 ```
 
+## Results (Pancreas-CT, 20% labeled)
+
+### Main result
+
+| Method | Dice (%) | Jaccard (%) | HD95 | ASD |
+|--------|----------|-------------|------|-----|
+| V-Net (sup. only) | 69.96 | 55.56 | 14.23 | 1.64 |
+| UA-MT | 77.26 | 63.82 | 11.90 | 3.06 |
+| BCP (published) | 82.91 | 70.97 | 6.43 | 2.25 |
+| DyCON (published) | 84.81 | 73.86 | 5.41 | 1.44 |
+| BCP (our reprod.) | 82.89 | 71.01 | 7.81 | 2.62 |
+| **BCP + PEM (ours)** | **84.03** | **72.68** | **5.65** | **1.67** |
+
+### PEM masking ablation
+
+| Mode | Mask % | Best Dice | Delta |
+|------|--------|-----------|-------|
+| Full (all voxels) | 100% | 84.03% | +1.14% |
+| Confident (t=0.999) | 7.7% | 84.01% | +1.12% |
+| Confident (t=0.99) | 3.5% | 83.98% | +1.09% |
+| Confident (t=0.95) | 1.9% | 83.97% | +1.08% |
+
+All modes peak at epoch 2. Full entropy is simplest and equally effective.
+
+### Base model requirement
+
+| Base Model | Base Dice | +PEM | Delta |
+|------------|-----------|------|-------|
+| Supervised VNet | 75.66% | 75.66% | 0.00 |
+| BCP (SSL) | 82.89% | 84.03% | +1.14% |
+
+PEM requires a well-converged SSL model. It does not improve supervised-only baselines.
+
 ## Evaluation
 
 ```bash
 python evaluate.py \
-    --checkpoint result/bcp_baseline/best_model.pth \
+    --checkpoint result/bcp_baseline_v2/best_model.pth \
     --data_root data/pancreas_h5 \
     --test_file splits/pancreas/test.txt
 ```

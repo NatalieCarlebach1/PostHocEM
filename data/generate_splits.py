@@ -49,19 +49,30 @@ def write_split(path, cases):
 
 
 def generate_bcp_splits(splits_dir, label_percent=20):
-    """Write the deterministic BCP/CoraNet canonical split files."""
+    """Write deterministic BCP-style split files for any label fraction.
+    Test set is always the BCP canonical 18 cases.
+    Train cases (62 total) are split by taking the first N as labeled.
+    For 20% this matches the BCP/CoraNet canonical split exactly.
+    """
     splits_dir = Path(splits_dir)
     splits_dir.mkdir(parents=True, exist_ok=True)
 
-    test_cases  = [_case_num_to_h5(n) for n in BCP_TEST]
-    lab_cases   = [_case_num_to_h5(n) for n in BCP_LABELED_20]
-    unlab_cases = [_case_num_to_h5(n) for n in BCP_UNLABELED_20]
+    # All 62 train cases in canonical order (excluding 0025, 0070)
+    all_train = sorted(BCP_LABELED_20 + BCP_UNLABELED_20)
+    n_labeled = max(1, int(len(all_train) * label_percent / 100))
 
-    print(f'BCP canonical split (Pancreas-CT 20% labeled)')
-    print(f'  Train labeled   : {len(lab_cases)}')
-    print(f'  Train unlabeled : {len(unlab_cases)}')
-    print(f'  Test            : {len(test_cases)}')
-    print(f'  Excluded cases  : 0025, 0070')
+    # For 100%, all are labeled and unlabeled list is empty
+    lab_nums   = all_train[:n_labeled]
+    unlab_nums = all_train[n_labeled:]
+
+    test_cases  = [_case_num_to_h5(n) for n in BCP_TEST]
+    lab_cases   = [_case_num_to_h5(n) for n in lab_nums]
+    unlab_cases = [_case_num_to_h5(n) for n in unlab_nums]
+
+    print(f'BCP-style split (Pancreas-CT {label_percent}% labeled)')
+    print(f'  Train labeled   : {len(lab_cases)} cases')
+    print(f'  Train unlabeled : {len(unlab_cases)} cases')
+    print(f'  Test            : {len(test_cases)} cases')
 
     write_split(splits_dir / f'train_lab_{label_percent}.txt',   lab_cases)
     write_split(splits_dir / f'train_unlab_{label_percent}.txt', unlab_cases)

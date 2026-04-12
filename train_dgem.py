@@ -39,11 +39,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
 from networks import VNet
-from dataloaders import get_loaders, FullVolumeDataset
+from dataloaders import PancreasDataset, FullVolumeDataset
 from utils.losses import SupLoss, entropy_loss_masked, entropy_loss_full
 from utils.ramps  import get_current_consistency_weight
 from utils.metrics import evaluate
@@ -66,7 +65,7 @@ def get_args():
     p.add_argument('--batch_size',     type=int,   default=2)
     p.add_argument('--lr',             type=float, default=1e-3)
     p.add_argument('--num_classes',    type=int,   default=2)
-    p.add_argument('--num_workers',    type=int,   default=2)
+    p.add_argument('--num_workers',    type=int,   default=0)
 
     # DGEM-specific
     p.add_argument('--warmup_epochs',       type=int,   default=30,
@@ -124,7 +123,7 @@ def create_model(n_classes, ema=False):
 @torch.no_grad()
 def update_ema(net, net_ema, decay):
     for p, p_ema in zip(net.parameters(), net_ema.parameters()):
-        p_ema.data = decay * p_ema.data + (1 - decay) * p.data
+        p_ema.data.mul_(decay).add_((1 - decay) * p.data)
 
 
 def setup_logging(save_dir):
@@ -172,19 +171,28 @@ def train(args):
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
     sup_loss_fn = SupLoss(args.num_classes)
 
-    # ── Data ─────────────────────────────────────────────────────────────────
-    lab_loader, unlab_loader, _ = get_loaders(
-        data_root=args.data_root,
-        splits_dir=args.splits_dir,
-        label_percent=args.label_percent,
-        patch_size=args.patch_size,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-    )
-    # Use full volumes for evaluation (not cropped patches)
+    # ── Data (matching BCP: no flip, CenterCrop for unlabeled) ─────────────
+    splits_dir = Path(args.splits_dir)
+
+    lab_ds = PancreasDataset(
+        args.data_root,
+        splits_dir / f'train_lab_{args.label_percent}.txt',
+        patch_size=args.patch_size, augment=False, repeat=5)
+    lab_loader = torch.utils.data.DataLoader(
+        lab_ds, batch_size=args.batch_size, shuffle=False,
+        num_workers=args.num_workers, pin_memory=True, drop_last=True)
+
+    unlab_ds = PancreasDataset(
+        args.data_root,
+        splits_dir / f'train_unlab_{args.label_percent}.txt',
+        patch_size=args.patch_size, augment=False, center_crop=True)
+    unlab_loader = torch.utils.data.DataLoader(
+        unlab_ds, batch_size=args.batch_size, shuffle=False,
+        num_workers=args.num_workers, pin_memory=True, drop_last=True)
+
     test_dataset = FullVolumeDataset(
         args.data_root,
-        str(Path(args.splits_dir) / 'test.txt')
+        str(splits_dir / 'test.txt')
     )
     log.info(f'Labeled batches/epoch: {len(lab_loader)} | '
              f'Unlabeled batches/epoch: {len(unlab_loader)}')
@@ -196,7 +204,7 @@ def train(args):
 
     for epoch in range(1, args.max_epochs + 1):
         net.train()
-        net_ema.eval()   # EMA teacher always in eval — no dropout stochasticity
+        net_ema.train()  # Matching BCP: EMA in train mode
 
         ep_sup = ep_em = ep_disagree_ratio = 0.0
 

@@ -7,3 +7,6 @@ result/
 figures/
 *.egg-info/
 .DS_Store
+paper/
+.vscode/
+data/
