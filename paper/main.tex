@@ -340,6 +340,16 @@ Our reported value at $E{=}5$ is conservative: it leaves $0.21$ Dice points on t
 We make two precise claims and verify both.
 \textbf{(C1) Converged SSL checkpoints satisfy $\rho_f(0.99) \in [0.89,0.95]$, whereas a supervised-only baseline trained on the same labels has $\rho_f(0.99)\!=\!0.55$ --- a $\sim$40\,pp gap that holds across two datasets and three label fractions and is the precondition under which PEM is well-conditioned} (Sec.~\ref{sec:method}, Tab.~\ref{tab:entropy}).
 \textbf{(C2) Whenever (C1) holds, a single post-hoc entropy minimization fine-tune --- no labels, no pseudo-labels, no architectural change, no test-set hyperparameter tuning --- improves Dice by $+0.6$ to $+1.3$ and HD95 by $-27\%$ to $-43\%$ over 3 seeds at a fixed compute budget under five minutes} (\tableref{tab:main}).
+
+\paragraph{Failure modes.}
+The diagnostic $\rho_f(0.99)$ characterizes the regime in which PEM is well-posed; outside it, PEM fails in two distinct, predictable ways.
+\textbf{(F1) Diffuse-entropy collapse.} When $\rho_f(0.99)\!\lesssim\!0.6$, as on the supervised-only baseline ($\rho_f\!=\!0.552$, Tab.~\ref{tab:entropy}), the residual entropy is scattered across the parenchyma rather than concentrated at decision boundaries.
+The PEM gradient is then dominated by interior voxels where the model is genuinely confused, and sharpening reinforces existing errors --- the collapse-protection safeguard halts every such run within a single epoch (verified on the supervised baseline at every learning rate tested, and on LA 5\% at $\mathrm{lr}\!\le\!10^{-6}$, Tab.~\ref{tab:ablation} rows b$^\dagger$).
+\textbf{(F2) Vanishing-entropy diminishing returns.} As the base checkpoint becomes more saturated, $\rho_f\!\to\!1$ but the total entropy $\sum_i H_i\!\to\!0$; the soft gradient $\partial H/\partial p$ scales with this budget while hard-pseudo-label gradients remain $O(1)$.
+This is the regime in which PL-FT becomes competitive with PEM, as observed on the most saturated configuration LA 10\% (Tab.~\ref{tab:main}, Tab.~\ref{tab:significance}).
+Both failure modes are predicted by the structural argument and bounded by a single label-free measurement on the unlabeled training set, making PEM's suitability auditable in advance --- a property we believe is more valuable than universal applicability.
+
+\paragraph{Other limitations.}
 Our results are limited to BCP-family checkpoints because they are the only ones publicly released on these benchmarks; whether (C1) holds for MOST/DyCON-style checkpoints is an open question.
 A second limitation is the dataset-specific learning rate, selected via labeled-fold cross-validation; an adaptive step size derived from the entropy histogram is left to future work.
 
