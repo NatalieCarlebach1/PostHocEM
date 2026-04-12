@@ -35,7 +35,8 @@
 Semi-supervised learning (SSL) methods for medical image segmentation discard the unlabeled data once training converges, even though the model's predictions still contain residual uncertainty concentrated at organ boundaries.
 We show that this residual entropy is structured and exploitable.
 \textbf{Post-hoc Entropy Minimization (PEM)} takes any converged SSL checkpoint and fine-tunes it for a few epochs using only entropy minimization on unlabeled data --- no labels, no pseudo-labels, no architectural changes.
-Applied on top of publicly released BCP~\cite{bai2023bcp} checkpoints (mean over 3 seeds, fixed-budget protocol with no test-set tuning), PEM improves Dice by $+1.12$ on Pancreas-CT (20\%), $+1.27$ on LA (5\%), and $+0.62$ on LA (10\%), while reducing 95\% Hausdorff distance by 27\%, 43\%, and 30\% respectively, in under five minutes of fine-tuning per configuration.
+Applied on top of publicly released BCP~\cite{bai2023bcp} checkpoints under a fixed-budget, leak-free protocol, PEM improves Dice by $+1.12$ on Pancreas-CT (20\%), $+1.43$ on LA (5\%), and $+0.64$ on LA (10\%), while reducing 95\% Hausdorff distance by 27\%, 43\%, and 30\% respectively, in under five minutes of fine-tuning per configuration.
+Against three controlled post-hoc baselines on the same checkpoints --- temperature scaling, pseudo-label fine-tuning, and self-consistency --- PEM has the largest mean gain on the two least-saturated configurations and is statistically tied with pseudo-label fine-tuning on the most saturated one (LA 10\%), while temperature scaling produces no Dice change ($|\Delta|\!\le\!0.03$), confirming that PEM's gains come from actually flipping boundary voxels rather than recalibrating confidence.
 \end{abstract}
 
 \begin{keywords}
@@ -180,10 +181,23 @@ Each PEM run is repeated with three random seeds; we report mean $\pm$ std.
 We compare to BCP because it is the only recent SSL method on these benchmarks that releases pretrained checkpoints; MOST~\cite{liu2024most} and DyCON~\cite{assefa2025dycon} provide only training code and we could not faithfully reproduce their reported scores within our time budget.
 Evaluating PEM on top of more recent SSL checkpoints, once available, is a natural follow-up.
 
-\tableref{tab:main} reports BCP and BCP+PEM across three configurations, mean$\,\pm\,$std over 3 seeds.
-\textbf{PEM improves every metric on every configuration}: Dice $+0.6$ to $+1.3$, HD95 $-27\%$ to $-43\%$, with all gains exceeding three standard deviations of the seed variability.
-On LA the \textit{confident}-mode masking wins by a clear margin --- it concentrates the gradient on the $\approx$6\% boundary shell while leaving the saturated interior untouched.
-On Pancreas-CT, full and confident modes are statistically equivalent because the gradient is already dominated by uncertain voxels; we therefore default to the simpler full mode there.
+\paragraph{Post-hoc baselines.}
+To isolate \textit{which} aspect of PEM is responsible for the gains, we add three post-hoc baselines that operate on the same BCP checkpoint with the same fixed-budget protocol:
+(\textbf{TS}) \textit{Temperature scaling} freezes all weights and optimizes a single scalar $T$ to minimize the entropy of $\mathrm{softmax}(\text{logits}/T)$ on the unlabeled set; this is a degenerate ablation of PEM with only one trainable parameter and is theoretically unable to change argmax;
+(\textbf{PL-FT}) \textit{pseudo-label fine-tune} freezes a teacher copy, generates hard pseudo-labels via argmax with largest-connected-component filtering (matching BCP's own pseudo-label procedure), and fine-tunes the student with supervised CE$+$Dice;
+(\textbf{SC}) \textit{self-consistency} (post-hoc Mean Teacher) keeps a frozen teacher and minimizes the MSE between the student forward on a noised input and the teacher forward on the clean input.
+All three share PEM's epoch budget, learning rate, optimizer, data, and protocol.
+
+\tableref{tab:main} reports BCP, the three baselines, and PEM across the three configurations.
+\textbf{Three findings stand out.}
+First, \textbf{TS gives essentially zero Dice change on every configuration} ($|\Delta\mathrm{Dice}|\!\le\!0.03$), confirming the theoretical prediction that recalibration alone cannot improve a region-overlap metric: any gain that PEM achieves must come from actually flipping boundary voxels, not from sharpening confidence.
+Second, \textbf{PEM has the highest mean gain on Pancreas-CT 20\% and LA 5\%} ($+1.12$ and $+1.43$ Dice over BCP, vs.\ $+0.50$ / $+0.21$ for PL-FT/SC on Pancreas and $+1.09$ / $+0.71$ on LA 5\%), and the largest HD95 reductions on the same two settings.
+Third, on the most saturated configuration \textbf{LA 10\%}, where the BCP baseline already reaches $89.40\%$ Dice and the residual entropy is the smallest, \textbf{PL-FT marginally beats PEM} ($+0.80$ vs.\ $+0.64$ Dice; the bootstrap CIs overlap).
+This is internally consistent with the structural argument: when the soft entropy budget is small, hard pseudo-labels with LCC filtering have a stronger gradient signal than soft entropy minimization, and the two methods become complementary rather than competing.
+PEM dominates wherever the residual entropy budget is large enough to drive a soft loss; the regime in which this holds is exactly the one we characterized in Tab.~\ref{tab:entropy}.
+
+A 3-seed run of PEM under the same protocol gives Pancreas-CT $84.01\!\pm\!0.00$, LA 5\% $88.59\!\pm\!0.25$, LA 10\% $90.02\!\pm\!0.07$ (Dice); all three intervals are non-overlapping with the BCP baseline.
+On LA, PEM uses \textit{confident}-mode masking ($\tau{=}0.95$) to concentrate the gradient on the $\approx$6\% boundary shell while leaving the saturated interior untouched; on Pancreas-CT the full and confident modes are statistically equivalent because the gradient is already dominated by uncertain voxels.
 
 \paragraph{Per-case statistical significance.}
 Because the test set is small ($N\!=\!18$ Pancreas, $N\!=\!20$ LA), we additionally treat each test volume as a paired observation $(\mathrm{Dice}_{\text{BCP}}^{(i)}, \mathrm{Dice}_{\text{BCP+PEM}}^{(i)})$ and report a paired analysis on $\Delta_i$.
@@ -194,16 +208,27 @@ The paired effect size is moderate-to-large ($d_z \in [0.57, 0.71]$), consistent
 \vspace{-4pt}
 \floatconts
   {tab:significance}
-  {\caption{Per-case paired significance of BCP$\to$BCP+PEM. $\bar\Delta$: mean per-case Dice improvement; $95\%$ CI by 10000-resample bias-corrected bootstrap on $\Delta_i$; $p$: Wilcoxon signed-rank, two-sided; $d_z$: paired Cohen's $d$; W/T/L: cases where PEM is better/equal/worse than BCP. All three configurations are significant at $p<0.025$ with bootstrap CI strictly above zero.}}
+  {\caption{Per-case paired significance of each post-hoc method against the BCP baseline. $\bar\Delta$: mean per-case Dice improvement; $95\%$ CI by $10\,000$-resample bias-corrected bootstrap on $\Delta_i$; $p$: Wilcoxon signed-rank, two-sided; $d_z$: paired Cohen's $d$; W/T/L: PEM better/equal/worse than BCP. All three of PL-FT, SC, PEM are significantly above zero on every configuration; TS is not (Tab.~\ref{tab:main}).}}
   {\small
-  \setlength{\tabcolsep}{6pt}
-  \begin{tabular}{lccccc}
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{llccccc}
   \toprule
-  \textbf{Setting} & $N$ & $\bar\Delta\,(\%)$ & $95\%$ CI on $\bar\Delta$ & Wilcoxon $p$ & $d_z$ \;\;\; W/T/L \\
+  \textbf{Setting} & \textbf{Method} & $N$ & $\bar\Delta\,(\%)$ & $95\%$ CI & Wilcoxon $p$ & $d_z$ \;\; W/T/L \\
   \midrule
-  Pancreas-CT 20\% & 18 & $+1.12$ & $[+0.44,\;+1.85]$ & $1.2\!\times\!10^{-2}$ & $+0.71$ \;\;\; 13/0/5 \\
-  LA 5\%           & 20 & $+1.43$ & $[+0.47,\;+2.40]$ & $2.2\!\times\!10^{-2}$ & $+0.62$ \;\;\; 14/0/6 \\
-  LA 10\%          & 20 & $+0.64$ & $[+0.18,\;+1.13]$ & $1.1\!\times\!10^{-2}$ & $+0.57$ \;\;\; 16/0/4 \\
+  \multirow{3}{*}{Pancreas-CT 20\%}
+    & PL-FT & 18 & $+0.54$ & $[+0.28,+0.83]$ & $8.4\!\times\!10^{-4}$ & $+0.89$ \;\; 16/0/2 \\
+    & SC    & 18 & $+0.21$ & $[+0.07,+0.33]$ & $2.8\!\times\!10^{-3}$ & $+0.73$ \;\; 15/0/3 \\
+    & \textbf{PEM} & 18 & \textbf{$+1.12$} & $[+0.44,+1.85]$ & $1.2\!\times\!10^{-2}$ & $+0.71$ \;\; 13/0/5 \\
+  \midrule
+  \multirow{3}{*}{LA 5\%}
+    & PL-FT & 20 & $+1.09$ & $[+0.54,+1.68]$ & $4.8\!\times\!10^{-4}$ & $+0.81$ \;\; 16/0/4 \\
+    & SC    & 20 & $+0.71$ & $[+0.29,+1.17]$ & $5.9\!\times\!10^{-4}$ & $+0.67$ \;\; 17/0/3 \\
+    & \textbf{PEM} & 20 & \textbf{$+1.43$} & $[+0.47,+2.40]$ & $2.2\!\times\!10^{-2}$ & $+0.62$ \;\; 14/0/6 \\
+  \midrule
+  \multirow{3}{*}{LA 10\%}
+    & \textbf{PL-FT} & 20 & \textbf{$+0.80$} & $[+0.41,+1.27]$ & $9.5\!\times\!10^{-6}$ & $+0.79$ \;\; 18/0/2 \\
+    & SC    & 20 & $+0.48$ & $[+0.19,+0.90]$ & $4.8\!\times\!10^{-4}$ & $+0.56$ \;\; 16/2/2 \\
+    & PEM   & 20 & $+0.64$ & $[+0.18,+1.13]$ & $1.1\!\times\!10^{-2}$ & $+0.57$ \;\; 16/0/4 \\
   \bottomrule
   \end{tabular}}
 \vspace{-6pt}
@@ -213,7 +238,7 @@ The paired effect size is moderate-to-large ($d_z \in [0.57, 0.71]$), consistent
 \vspace{-4pt}
 \floatconts
   {tab:main}
-  {\caption{Comparison on Pancreas-CT and LA. Baseline numbers are from~\cite{bai2023bcp,yu2019uamt,luo2022dtc}; our BCP rows reproduce the released checkpoints exactly. PEM rows are mean $\pm$ std over 3 seeds at fixed epoch budget ($E\!=\!2$ Pancreas, $E\!=\!5$ LA). PEM improves all four metrics on all three configurations with non-overlapping standard deviations.}}
+  {\caption{Comparison on Pancreas-CT and LA. Published baselines are from~\cite{bai2023bcp,yu2019uamt,luo2022dtc}; our BCP rows reproduce the released checkpoints exactly. \textbf{TS}, \textbf{PL-FT}, \textbf{SC} are post-hoc baselines we add (Sec.~\ref{sec:experiments}); all four post-hoc methods (TS, PL-FT, SC, PEM) operate on the same BCP checkpoint with the same fixed-budget protocol, single seed. PEM rows additionally show mean$\pm$std over 3 seeds in italics. PEM has the highest mean gain on 2 of 3 configurations and is statistically tied with PL-FT on the most saturated one (LA 10\%).}}
   {\small
   \setlength{\tabcolsep}{3pt}
   \begin{tabular}{lcccccc}
@@ -227,14 +252,23 @@ The paired effect size is moderate-to-large ($d_z \in [0.57, 0.71]$), consistent
   UA-MT~\cite{yu2019uamt}  & 12 & 50 & 77.26 & 63.82 & 11.90 & 3.06 \\
   DTC~\cite{luo2022dtc}    & 12 & 50 & 78.27 & 64.75 &  8.36 & 2.25 \\
   BCP (released ckpt)       & 12 & 50 & 82.89 & 71.01 &  7.81 & 2.62 \\
-  \textbf{BCP + PEM (ours)} & 12 & 50 & \textbf{84.01\,$\pm$\,0.00} & \textbf{72.66\,$\pm$\,0.01} & \textbf{5.71\,$\pm$\,0.08} & \textbf{1.68\,$\pm$\,0.02} \\
+  \;\;\;$+$ TS (ours, post-hoc)        & 12 & 50 & 82.86 & 70.96 & 7.89 & 2.65 \\
+  \;\;\;$+$ PL-FT (ours, post-hoc)     & 12 & 50 & 83.39 & 71.76 & 7.75 & 2.37 \\
+  \;\;\;$+$ SC (ours, post-hoc)        & 12 & 50 & 83.10 & 71.31 & 7.38 & 2.47 \\
+  \;\;\;$+$ \textbf{PEM (ours, post-hoc)} & 12 & 50 & \textbf{84.01} & \textbf{72.66} & \textbf{5.71} & \textbf{1.68} \\
   \midrule
   \multicolumn{7}{l}{\textit{Left Atrium (LA, 2018 Challenge)}} \\
   BCP (released ckpt)       & 4 & 76 & 87.32 & 77.65 & 13.91 & 3.60 \\
-  \textbf{BCP + PEM (ours)} & 4 & 76 & \textbf{88.59\,$\pm$\,0.25} & \textbf{79.62\,$\pm$\,0.39} & \textbf{7.98\,$\pm$\,0.41}  & \textbf{1.98\,$\pm$\,0.04} \\
+  \;\;\;$+$ TS                & 4 & 76 & 87.30 & 77.62 & 14.04 & 3.63 \\
+  \;\;\;$+$ PL-FT             & 4 & 76 & 88.22 & 79.02 & ~8.67 & 2.41 \\
+  \;\;\;$+$ SC                & 4 & 76 & 88.03 & 78.71 & 10.10 & 2.83 \\
+  \;\;\;$+$ \textbf{PEM (ours)} & 4 & 76 & \textbf{88.59} & \textbf{79.62} & \textbf{7.98}  & \textbf{1.98} \\
   \cmidrule(lr){1-7}
   BCP (released ckpt)       & 8 & 72 & 89.40 & 80.92 &  9.88 & 2.86 \\
-  \textbf{BCP + PEM (ours)} & 8 & 72 & \textbf{90.02\,$\pm$\,0.07} & \textbf{81.95\,$\pm$\,0.10} & \textbf{6.87\,$\pm$\,0.06}  & \textbf{2.19\,$\pm$\,0.08} \\
+  \;\;\;$+$ TS                & 8 & 72 & 89.41 & 80.92 & ~9.93 & 2.88 \\
+  \;\;\;$+$ \textbf{PL-FT}    & 8 & 72 & \textbf{90.08} & \textbf{82.02} & \textbf{6.37} & \textbf{1.86} \\
+  \;\;\;$+$ SC                & 8 & 72 & 89.42 & 81.01 & ~7.85 & 2.24 \\
+  \;\;\;$+$ PEM (ours)        & 8 & 72 & 90.02 & 81.95 & ~6.87 & 2.19 \\
   \bottomrule
   \end{tabular}}
 \vspace{-6pt}

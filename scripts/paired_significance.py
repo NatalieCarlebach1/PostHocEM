@@ -34,21 +34,33 @@ CONFIGS = [
     {'name': 'Pancreas-CT 20%',
      'kind': 'pancreas',
      'bcp':  'result/bcp_baseline_v2/best_model.pth',
-     'pem':  'result/pem_seed_pancreas_2020/best_model.pth',
+     'methods': {
+         'PEM':   'result/pem_seed_pancreas_2020/best_model.pth',
+         'PL-FT': 'result/baseline_pl_ft_pancreas20/best_model.pth',
+         'SC':    'result/baseline_sc_pancreas20/best_model.pth',
+     },
      'data_root': 'data/pancreas_h5',
      'test_split': 'splits/pancreas/test.txt',
      'patch': (96, 96, 96), 'stride_xy': 16, 'stride_z': 4},
     {'name': 'LA 5%',
      'kind': 'la',
      'bcp':  'result/bcp_pretrained/LA_5.pth',
-     'pem':  'result/pem_seed_la5_2020/best_model.pth',
+     'methods': {
+         'PEM':   'result/pem_seed_la5_2020/best_model.pth',
+         'PL-FT': 'result/baseline_pl_ft_la5/best_model.pth',
+         'SC':    'result/baseline_sc_la5/best_model.pth',
+     },
      'data_root': 'data/la_h5/2018LA_Seg_Training Set',
      'test_split': 'splits/la/test.txt',
      'patch': (112, 112, 80), 'stride_xy': 18, 'stride_z': 4},
     {'name': 'LA 10%',
      'kind': 'la',
      'bcp':  'result/bcp_pretrained/LA_10.pth',
-     'pem':  'result/pem_seed_la10_2020/best_model.pth',
+     'methods': {
+         'PEM':   'result/pem_seed_la10_2020/best_model.pth',
+         'PL-FT': 'result/baseline_pl_ft_la10/best_model.pth',
+         'SC':    'result/baseline_sc_la10/best_model.pth',
+     },
      'data_root': 'data/la_h5/2018LA_Seg_Training Set',
      'test_split': 'splits/la/test.txt',
      'patch': (112, 112, 80), 'stride_xy': 18, 'stride_z': 4},
@@ -119,46 +131,44 @@ def cohens_dz(deltas):
 
 def main():
     os.environ.setdefault('CUDA_VISIBLE_DEVICES', '0')
-    print(f'{"Setting":<18s} {"N":>3s} {"mean Δ":>9s} {"95% CI":>17s} '
-          f'{"Wilcoxon p":>12s} {"d_z":>7s} {"W/T/L":>8s}')
-    print('-' * 78)
+    print(f'{"Setting":<16s} {"Method":<8s} {"N":>3s} {"mean Δ":>9s} {"95% CI":>17s} '
+          f'{"Wilcoxon p":>12s} {"d_z":>7s} {"W/T/L":>10s}')
+    print('-' * 92)
 
     for cfg in CONFIGS:
         with open(ROOT / cfg['test_split']) as f:
             cases = [l.strip() for l in f if l.strip()]
 
-        if cfg['kind'] == 'pancreas':
-            net_bcp = load_pancreas(cfg['bcp'])
-            net_pem = load_pancreas(cfg['pem'])
-        else:
-            net_bcp = load_la(cfg['bcp'])
-            net_pem = load_la(cfg['pem'])
+        loader = load_pancreas if cfg['kind'] == 'pancreas' else load_la
 
+        net_bcp = loader(cfg['bcp'])
         d_bcp = per_case_dice(net_bcp, cases, cfg['kind'], cfg['data_root'],
                               cfg['patch'], cfg['stride_xy'], cfg['stride_z'])
-        d_pem = per_case_dice(net_pem, cases, cfg['kind'], cfg['data_root'],
-                              cfg['patch'], cfg['stride_xy'], cfg['stride_z'])
-        deltas = d_pem - d_bcp
-        wins = int((deltas > 1e-4).sum())
-        ties = int((np.abs(deltas) <= 1e-4).sum())
-        losses = int((deltas < -1e-4).sum())
-
-        # Wilcoxon: paired, two-sided, exclude zeros
-        try:
-            stat, p = wilcoxon(d_pem, d_bcp, zero_method='wilcox', alternative='two-sided')
-        except ValueError:
-            p = float('nan')
-        lo, hi = bootstrap_ci(deltas)
-        d_z = cohens_dz(deltas)
-        n = len(deltas)
-        mean_delta = deltas.mean() * 100
-        print(f'{cfg["name"]:<18s} {n:>3d} {mean_delta:>+8.2f}%  '
-              f'[{lo*100:+5.2f}, {hi*100:+5.2f}]  '
-              f'{p:>10.2e}  {d_z:>+6.2f}  {wins:>2d}/{ties}/{losses}')
-
-        # Free GPU memory
-        del net_bcp, net_pem
+        del net_bcp
         torch.cuda.empty_cache()
+
+        for mname, mckpt in cfg['methods'].items():
+            net = loader(mckpt)
+            d = per_case_dice(net, cases, cfg['kind'], cfg['data_root'],
+                              cfg['patch'], cfg['stride_xy'], cfg['stride_z'])
+            del net
+            torch.cuda.empty_cache()
+
+            deltas = d - d_bcp
+            wins = int((deltas > 1e-4).sum())
+            ties = int((np.abs(deltas) <= 1e-4).sum())
+            losses = int((deltas < -1e-4).sum())
+            try:
+                _, p = wilcoxon(d, d_bcp, zero_method='wilcox', alternative='two-sided')
+            except ValueError:
+                p = float('nan')
+            lo, hi = bootstrap_ci(deltas)
+            d_z = cohens_dz(deltas)
+            n = len(deltas)
+            mean_delta = deltas.mean() * 100
+            print(f'{cfg["name"]:<16s} {mname:<8s} {n:>3d} {mean_delta:>+8.2f}%  '
+                  f'[{lo*100:+5.2f}, {hi*100:+5.2f}]  '
+                  f'{p:>10.2e}  {d_z:>+6.2f}  {wins:>3d}/{ties}/{losses}')
 
 
 if __name__ == '__main__':
