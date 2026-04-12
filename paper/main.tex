@@ -45,13 +45,23 @@ Semi-supervised learning, medical image segmentation, entropy minimization, post
 \section{Introduction}
 \label{sec:intro}
 
-Recent SSL methods for medical image segmentation~\cite{tarvainen2017meanteacher,yu2019uamt,bai2023bcp,liu2024most,assefa2025dycon} share a common property: once training converges, the unlabeled data is abandoned.
-Yet the model's predictions on unlabeled volumes still contain residual uncertainty --- in a converged BCP model on Pancreas-CT, only $\sim$5\% of voxels have $\max_c p_{i,c} \le 0.99$, but those voxels carry $\sim$90\% of the total prediction entropy (Sec.~\ref{sec:method}, Tab.~\ref{tab:entropy}).
-A supervised baseline on the same data carries only $\sim$55\% of its entropy in the analogous shell, so this concentration is a property of SSL convergence, not of the network or the data.
-This concentrated entropy is an untapped source of self-supervision.
-We propose \textbf{Post-hoc Entropy Minimization (PEM)}: take any converged SSL checkpoint, fine-tune for a few epochs on unlabeled data with a single entropy loss --- no labels, no pseudo-labels, no architectural changes, no extra models.
-Applied to publicly released BCP checkpoints, PEM consistently improves both Dice and HD95 on three benchmark configurations spanning two datasets.
-Entropy minimization itself is classical~\cite{grandvalet2004entropy} and widely used in domain adaptation and SSL classification~\cite{sohn2020fixmatch}, but to our knowledge its use as a post-hoc refinement of converged 3D segmentation checkpoints has not been explored.
+Recent SSL methods for medical image segmentation~\cite{tarvainen2017meanteacher,yu2019uamt,bai2023bcp,liu2024most,assefa2025dycon} share a common operating assumption: once training converges, the unlabeled data is discarded and the final checkpoint is used as-is.
+We make a different observation.
+By directly measuring the per-voxel softmax distribution of converged BCP checkpoints on the unlabeled training set, we find that \textbf{$89$--$95\%$ of their total prediction entropy is concentrated in a thin uncertain-voxel shell ($\sim$5--9\% of the volume), while a supervised-only baseline trained on the same labels carries only $\sim$55\% of its entropy in the analogous shell} (Tab.~\ref{tab:entropy}).
+This $\sim$40-percentage-point gap is a property of SSL convergence, not of the network or the data, and it is the precondition that makes a post-hoc, label-free refinement step both well-conditioned and safe.
+We exploit this structure with \textbf{Post-hoc Entropy Minimization (PEM)}: take any converged SSL checkpoint, fine-tune for $2$--$5$ epochs on unlabeled data with a single entropy loss optionally restricted to a confidence shell --- no labels, no pseudo-labels, no architectural changes, no extra models.
+
+\paragraph{Contributions.}
+\begin{itemize}
+    \setlength\itemsep{0pt}
+    \item \textbf{An empirical regularity of SSL convergence.} Direct measurement (Tab.~\ref{tab:entropy}) shows that converged BCP checkpoints concentrate $89$--$95\%$ of their residual entropy in a small uncertain-voxel shell, while a supervised-only baseline trained on the same 12 labels concentrates only $55\%$. To our knowledge this is the first quantitative characterization of ``what SSL training leaves behind'' on these benchmarks.
+    \item \textbf{Post-hoc Entropy Minimization in a new operating regime.} We introduce PEM, a training-free, label-free post-processing step. PEM differs from training-time entropy minimization~\cite{grandvalet2004entropy,sohn2020fixmatch} in \textit{operating regime}, not in loss: it acts on a converged optimum whose residual entropy is already structurally concentrated, so the gradient signal is automatically aligned with the locus of error and cannot interfere with the base model's pseudo-label loop or supervised gradients.
+    \item \textbf{Reproducible empirical validation.} Mean over 3 seeds with a leak-free, fixed-budget protocol, PEM improves Dice by $+0.6$ to $+1.3$ and HD95 by $27$--$43\%$ on Pancreas-CT 20\%, LA 5\%, and LA 10\% (Tab.~\ref{tab:main}); all gains exceed $3\sigma$ of seed variability. The LR\,/\,$\tau$\,/\,epoch ablation (Tab.~\ref{tab:ablation}) and the failure of PEM on a supervised-only baseline together verify the operating-regime argument.
+\end{itemize}
+
+\paragraph{Why this is not a re-application of classical entropy minimization.}
+Entropy minimization itself is classical, but the \textit{post-hoc} operating regime is not: standard EM acts during training on diffuse, evolving distributions, whereas we measure (Tab.~\ref{tab:entropy}) that a converged SSL checkpoint is in a fundamentally different regime --- its entropy is already concentrated in a thin boundary shell --- and we verify that the same loss applied to a supervised-only checkpoint, where this concentration is absent, fails to improve the model.
+The contribution is the operating regime and its empirical characterization, not the loss function.
 
 % ══════════════════════════════════════════════════════════════════════════════
 \section{Method}
