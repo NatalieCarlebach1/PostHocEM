@@ -36,6 +36,7 @@ import copy
 from pathlib import Path
 
 import numpy as np
+import h5py
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -45,6 +46,73 @@ from networks import VNet
 from dataloaders import PancreasDataset, FullVolumeDataset
 from utils.losses import entropy_loss_full, entropy_loss_masked
 from utils.metrics import evaluate
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LA dataset adapters (inline to avoid touching the dataloader file)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class _LAFullVolume:
+    """LA test loader: case dirs containing mri_norm2.h5"""
+    def __init__(self, data_root, split_file):
+        self.data_root = Path(data_root)
+        with open(split_file) as f:
+            self.cases = [l.strip() for l in f if l.strip()]
+
+    def __len__(self):
+        return len(self.cases)
+
+    def __getitem__(self, idx):
+        case = self.cases[idx]
+        path = self.data_root / case / 'mri_norm2.h5'
+        with h5py.File(str(path), 'r') as f:
+            image = f['image'][:].astype(np.float32)
+            label = f['label'][:].astype(np.uint8)
+        return image, label, case
+
+
+class _LAUnlabeled:
+    """LA unlabeled loader: case dirs, simple center crop to patch_size."""
+    def __init__(self, data_root, split_file, patch_size):
+        self.data_root = Path(data_root)
+        with open(split_file) as f:
+            self.cases = [l.strip() for l in f if l.strip()]
+        self.patch_size = patch_size if isinstance(patch_size, (tuple, list)) else (patch_size,) * 3
+
+    def __len__(self):
+        return len(self.cases)
+
+    def __getitem__(self, idx):
+        case = self.cases[idx]
+        path = self.data_root / case / 'mri_norm2.h5'
+        with h5py.File(str(path), 'r') as f:
+            image = f['image'][:].astype(np.float32)
+            label = f['label'][:].astype(np.uint8)
+        p = self.patch_size
+        w, h, d = image.shape
+        pw = max((p[0] - w) // 2 + 1, 0)
+        ph = max((p[1] - h) // 2 + 1, 0)
+        pd = max((p[2] - d) // 2 + 1, 0)
+        if pw or ph or pd:
+            image = np.pad(image, [(pw, pw), (ph, ph), (pd, pd)], mode='constant')
+            label = np.pad(label, [(pw, pw), (ph, ph), (pd, pd)], mode='constant')
+        w, h, d = image.shape
+        x = (w - p[0]) // 2
+        y = (h - p[1]) // 2
+        z = (d - p[2]) // 2
+        image = image[x:x+p[0], y:y+p[1], z:z+p[2]]
+        label = label[x:x+p[0], y:y+p[1], z:z+p[2]]
+        image = torch.from_numpy(image).unsqueeze(0).float()
+        label = torch.from_numpy(label.astype(np.int64)).long()
+        return image, label
+
+
+def parse_patch_size(s):
+    """Parse patch size CLI arg as int (e.g. '96') or tuple (e.g. '112,112,80')."""
+    parts = s.split(',')
+    if len(parts) == 1:
+        return int(parts[0])
+    return tuple(int(x) for x in parts)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -59,12 +127,23 @@ def get_args():
     p.add_argument("--splits_dir",  required=True)
     p.add_argument("--save_dir",    default="result/posthoc_em")
 
+    # Dataset selection
+    p.add_argument("--dataset",     default="pancreas",
+                   choices=["pancreas", "la"])
+    p.add_argument("--la_data_root", default="data/la_h5",
+                   help="LA H5 root (case dirs containing mri_norm2.h5)")
+
     # PEM hyperparameters
     p.add_argument("--epochs",      type=int,   default=10)
     p.add_argument("--lr",          type=float, default=5e-5,
                    help="Very low LR — we are nudging, not retraining")
     p.add_argument("--batch_size",  type=int,   default=2)
-    p.add_argument("--patch_size",  type=int,   default=96)
+    p.add_argument("--patch_size",  type=str,   default='96',
+                   help="Either int (e.g. '96') or comma-separated tuple "
+                        "(e.g. '112,112,80')")
+    p.add_argument("--stride_xy",   type=int,   default=None,
+                   help="Sliding-window stride in xy. Default: 16 (pancreas), "
+                        "18 (la)")
     p.add_argument("--num_classes", type=int,   default=2)
     p.add_argument("--label_percent", type=int, default=20)
 
@@ -80,6 +159,11 @@ def get_args():
     p.add_argument("--em_weight",   type=float, default=1.0)
     p.add_argument("--grad_clip",   type=float, default=1.0,
                    help="Gradient clipping norm (prevents catastrophic updates)")
+    p.add_argument("--decoder_only", action="store_true",
+                   help="Freeze encoder, only fine-tune decoder + head during PEM")
+    p.add_argument("--random_augment", action="store_true",
+                   help="Use random crops + flips + shuffle for unlabeled data "
+                        "(adds stochasticity, enables multi-seed ensembling)")
 
     # Safety
     p.add_argument("--patience",    type=int, default=3,
@@ -89,7 +173,11 @@ def get_args():
 
     p.add_argument("--seed", type=int, default=2020)
     p.add_argument("--gpu",  type=str, default="0")
-    return p.parse_args()
+    args = p.parse_args()
+    args.patch_size = parse_patch_size(args.patch_size)
+    if args.stride_xy is None:
+        args.stride_xy = 18 if args.dataset == 'la' else 16
+    return args
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -107,8 +195,29 @@ def seed_everything(seed):
         torch.backends.cudnn.benchmark = False
 
 
-def load_model(checkpoint_path, num_classes):
-    """Load a VNet checkpoint (matching BCP: instancenorm, no dropout)."""
+def load_model(checkpoint_path, num_classes, dataset='pancreas'):
+    """Load a VNet checkpoint.
+
+    For pancreas: VNet with instancenorm + has_dropout=False (matching BCP).
+    For LA: VNetBCP_LA with the LA-specific conventions.
+    """
+    if dataset == 'la':
+        from networks.vnet_bcp_la import VNetBCP_LA
+        net = VNetBCP_LA(n_channels=1, n_classes=num_classes)
+        net = nn.DataParallel(net).cuda()
+        state = torch.load(checkpoint_path, map_location='cuda')
+        if isinstance(state, dict):
+            if 'net' in state:
+                state = state['net']
+            elif 'model_state_dict' in state:
+                state = state['model_state_dict']
+        # LA checkpoints are typically bare state_dicts with no 'module.' prefix
+        if not any(k.startswith('module.') for k in state.keys()):
+            net.module.load_state_dict(state, strict=False)
+        else:
+            net.load_state_dict(state)
+        return net
+
     net = VNet(n_channels=1, n_classes=num_classes,
                normalization='instancenorm', has_dropout=False)
     net = nn.DataParallel(net).cuda()
@@ -180,34 +289,85 @@ def main():
     with open(csv_path, 'w') as f:
         f.write('epoch,mode,em_loss,mask_ratio,dice,jaccard,hd95,asd,best_dice,delta\n')
 
-    # ── Data (matching BCP: CenterCrop, no flip) ────────────────────────────
+    # ── Data ────────────────────────────────────────────────────────────────
     splits_dir = Path(args.splits_dir)
-    unlab_ds = PancreasDataset(
-        args.data_root,
-        splits_dir / f'train_unlab_{args.label_percent}.txt',
-        patch_size=args.patch_size, augment=False, center_crop=True)
-    unlab_loader = torch.utils.data.DataLoader(
-        unlab_ds, batch_size=args.batch_size, shuffle=False,
-        num_workers=0, pin_memory=True, drop_last=True)
+    if args.dataset == 'la':
+        unlab_ds = _LAUnlabeled(
+            args.la_data_root,
+            splits_dir / f'train_unlab_{args.label_percent}.txt',
+            patch_size=args.patch_size)
+        unlab_loader = torch.utils.data.DataLoader(
+            unlab_ds, batch_size=args.batch_size, shuffle=False,
+            num_workers=0, pin_memory=True, drop_last=True)
+        test_ds = _LAFullVolume(
+            args.la_data_root, str(splits_dir / 'test.txt'))
+    else:
+        # Pancreas (matching BCP: CenterCrop, no flip)
+        if args.random_augment:
+            unlab_ds = PancreasDataset(
+                args.data_root,
+                splits_dir / f'train_unlab_{args.label_percent}.txt',
+                patch_size=args.patch_size, augment=True, repeat=1)
+            unlab_loader = torch.utils.data.DataLoader(
+                unlab_ds, batch_size=args.batch_size, shuffle=True,
+                num_workers=2, pin_memory=True, drop_last=True)
+        else:
+            unlab_ds = PancreasDataset(
+                args.data_root,
+                splits_dir / f'train_unlab_{args.label_percent}.txt',
+                patch_size=args.patch_size, augment=False, center_crop=True)
+            unlab_loader = torch.utils.data.DataLoader(
+                unlab_ds, batch_size=args.batch_size, shuffle=False,
+                num_workers=0, pin_memory=True, drop_last=True)
 
-    test_ds = FullVolumeDataset(
-        args.data_root, str(splits_dir / 'test.txt'))
+        test_ds = FullVolumeDataset(
+            args.data_root, str(splits_dir / 'test.txt'))
 
     log.info(f"Unlabeled: {len(unlab_ds)} cases | Test: {len(test_ds)} cases")
 
     # ── Load student model ──────────────────────────────────────────────────
-    net = load_model(args.checkpoint, args.num_classes)
+    net = load_model(args.checkpoint, args.num_classes, dataset=args.dataset)
     log.info(f"Loaded checkpoint: {args.checkpoint}")
 
     # ── Create frozen teacher (copy of checkpoint, never updated) ───────────
-    teacher = load_model(args.checkpoint, args.num_classes)
+    teacher = load_model(args.checkpoint, args.num_classes, dataset=args.dataset)
     teacher.eval()
     for p in teacher.parameters():
         p.requires_grad_(False)
     log.info("Created frozen teacher from same checkpoint")
 
+    # ── LA: freeze BatchNorm for stable PEM with small batch ────────────────
+    if args.dataset == 'la':
+        def freeze_bn(m):
+            import torch.nn as _nn
+            if isinstance(m, (_nn.BatchNorm1d, _nn.BatchNorm2d, _nn.BatchNorm3d)):
+                m.eval()
+                for p in m.parameters():
+                    p.requires_grad_(False)
+        net.apply(freeze_bn)
+        teacher.apply(freeze_bn)
+        log.info("LA: froze all BatchNorm layers (stats + params)")
+
+    # ── Optionally freeze encoder (decoder-only PEM) ────────────────────────
+    if args.decoder_only:
+        # Encoder = block_one..five + downsamplings (everything before block_five_up)
+        encoder_attrs = [
+            'block_one', 'block_one_dw', 'block_two', 'block_two_dw',
+            'block_three', 'block_three_dw', 'block_four', 'block_four_dw',
+            'block_five',
+        ]
+        n_frozen = 0
+        for attr in encoder_attrs:
+            for p in getattr(net.module, attr).parameters():
+                p.requires_grad_(False)
+                n_frozen += p.numel()
+        n_train = sum(p.numel() for p in net.parameters() if p.requires_grad)
+        log.info(f"Decoder-only PEM: froze {n_frozen:,} encoder params, "
+                 f"training {n_train:,} decoder + head params")
+
     # ── Optimizer: Adam, very low LR, no weight decay ───────────────────────
-    optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
+    trainable = [p for p in net.parameters() if p.requires_grad]
+    optimizer = torch.optim.Adam(trainable, lr=args.lr)
 
     # ── Baseline eval (with cache) ──────────────────────────────────────────
     # Cache the baseline metrics next to the checkpoint so we don't recompute
@@ -218,6 +378,8 @@ def main():
         'patch_size': args.patch_size,
         'test_file':  str(splits_dir / 'test.txt'),
         'num_classes': args.num_classes,
+        'dataset':    args.dataset,
+        'stride_xy':  args.stride_xy,
     }
 
     cached = None
@@ -240,7 +402,9 @@ def main():
     else:
         log.info("=== Baseline evaluation (before PEM) ===")
         base_dice, base_jc, base_hd, base_asd = evaluate(
-            net, test_ds, args.patch_size, n_classes=args.num_classes)
+            net, test_ds, args.patch_size,
+            stride_xy=args.stride_xy, stride_z=4,
+            n_classes=args.num_classes)
         log.info(f"[Baseline]  Dice={base_dice:.4f}  Jc={base_jc:.4f}  "
                  f"HD95={base_hd:.2f}  ASD={base_asd:.2f}")
         # Save to cache
@@ -307,7 +471,9 @@ def main():
 
         # ── Eval ─────────────────────────────────────────────────────────
         dice, jc, hd, asd = evaluate(
-            net, test_ds, args.patch_size, n_classes=args.num_classes)
+            net, test_ds, args.patch_size,
+            stride_xy=args.stride_xy, stride_z=4,
+            n_classes=args.num_classes)
         delta = dice - base_dice
         log.info(f"[Epoch {epoch}]  Dice={dice:.4f}  Jc={jc:.4f}  "
                  f"HD95={hd:.2f}  ASD={asd:.2f}  "
