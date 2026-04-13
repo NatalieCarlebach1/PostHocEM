@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+env/
+.ipynb_checkpoints/
+
+# LaTeX build artifacts (MIDL paper/)
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
+paper/*.toc
+paper/*.synctex.gz
+paper/*.fls
+paper/*.fdb_latexmk
+paper/build/
+
+# LaTeX build artifacts (NeurIPS neurips/paper/)
+neurips/paper/*.aux
+neurips/paper/*.log
+neurips/paper/*.out
+neurips/paper/*.bbl
+neurips/paper/*.blg
+neurips/paper/*.toc
+neurips/paper/*.synctex.gz
+neurips/paper/*.fls
+neurips/paper/*.fdb_latexmk
+neurips/paper/build/
+
+# Heavy artifacts — track via DVC or rsync, not git
+result/
+logs/
+checkpoints/
+data/pancreas_h5/
+data/la_h5/
+data/raw/
+data/*.zip
+data/*.tar
+data/*.tar.gz
+
+# NeurIPS heavy results (keep metrics.json/config.yaml/per_case.csv — ignore weights & volumes)
+neurips/results/**/*.pth
+neurips/results/**/*.pt
+neurips/results/**/*.npy
+neurips/results/**/*.npz
+neurips/results/**/*.nii
+neurips/results/**/*.nii.gz
+neurips/results/**/*.h5
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+.claude/settings.local.json
