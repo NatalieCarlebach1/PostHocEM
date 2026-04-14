@@ -1,0 +1,45 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\textit{[Placeholder. Experiments section will be written alongside multi-seed runs on MOST, DyCON, and additional datasets. Tables below are placeholders so the compiled draft has valid cross-references to \texttt{tab:entropy} and \texttt{tab:main}.]}
+
+\begin{table}[t]
+\centering
+\caption{Shell entropy concentration $\rho_f(\tau)$ on the unlabeled training volumes of each configuration. \emph{[Placeholder — numbers copied from the MIDL short paper; will be re-measured with more checkpoints for the NeurIPS version.]}}
+\label{tab:entropy}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Checkpoint} & \textbf{Sat\%}$\uparrow$ & \textbf{Unc\%} & $\boldsymbol{\rho_f(0.99)}\uparrow$ & $\bar d$ (vox) \\
+\midrule
+Supervised V-Net (Pancreas, no SSL)   & 90.7 & 9.3 & 0.552 & 14.45 \\
+BCP Pancreas-CT 20\% (released ckpt) & 95.0 & 5.0 & 0.894 & 10.56 \\
+BCP LA 5\% (released ckpt)           & 91.8 & 8.2 & 0.948 &  5.19 \\
+BCP LA 10\% (released ckpt)          & 91.4 & 8.6 & 0.945 &  5.96 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{Main results. \emph{[Placeholder — to be regenerated from \texttt{neurips/results/} once NeurIPS-scope experiments are complete.]}}
+\label{tab:main}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Method} & \textbf{Dice}$\uparrow$ & \textbf{Jaccard}$\uparrow$ & \textbf{HD95}$\downarrow$ & \textbf{ASD}$\downarrow$ \\
+\midrule
+\multicolumn{5}{l}{\textit{Pancreas-CT 20\%}} \\
+BCP (released ckpt) & 82.89 & 71.01 & 7.81 & 2.62 \\
+\;\;$+$ PEM (ours)  & 84.01 & 72.66 & 5.71 & 1.68 \\
+\midrule
+\multicolumn{5}{l}{\textit{LA 5\%}} \\
+BCP (released ckpt) & 87.32 & 77.65 & 13.91 & 3.60 \\
+\;\;$+$ PEM (ours)  & 88.59 & 79.62 & 7.98 & 1.98 \\
+\midrule
+\multicolumn{5}{l}{\textit{LA 10\%}} \\
+BCP (released ckpt) & 89.40 & 80.92 & 9.88 & 2.86 \\
+\;\;$+$ PEM (ours)  & 90.02 & 81.95 & 6.87 & 2.19 \\
+\bottomrule
+\end{tabular}
+\end{table}

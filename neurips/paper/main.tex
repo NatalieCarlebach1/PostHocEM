@@ -1,28 +1,39 @@
 \documentclass{article}
 
-% Drop the downloaded neurips_YYYY.sty into this directory and \usepackage it.
-% \usepackage{neurips_2025}              % anonymized submission
-% \usepackage[final]{neurips_2025}       % camera-ready
+% NeurIPS 2024 style file (downloaded from neurips.cc).
+% For anonymous submission (review mode) use:
+\usepackage{neurips_2024}
+% For camera-ready with author info use instead:
+%\usepackage[final]{neurips_2024}
+% For the preprint / arXiv mode with no page-limit banner:
+%\usepackage[preprint]{neurips_2024}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{hyperref}
 \usepackage{url}
 \usepackage{booktabs}
-\usepackage{amsfonts,amsmath,amssymb}
+\usepackage{amsfonts,amsmath,amssymb,amsthm}
 \usepackage{nicefrac}
 \usepackage{microtype}
 \usepackage{graphicx}
 \usepackage{multirow}
 \usepackage{xcolor}
 
+% Theorem-like environments used in Sec. Method and Sec. Theory.
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+
 \input{macros}
 
 \title{Post-hoc Entropy Minimization for Semi-Supervised Medical Image Segmentation}
 
+% NeurIPS author block: use \author{...} with \And, \AND, affiliations via \\ and institution lines.
 \author{%
-  Anonymous Authors \\
-  Anonymous Institution
+  Anonymous Author(s)\\
+  Affiliation\\
+  Address\\
+  \texttt{email}
 }
 
 \begin{document}
@@ -37,7 +48,7 @@
 \input{sections/06_ablations}
 \input{sections/07_discussion}
 
-\bibliographystyle{plain}
+\bibliographystyle{plainnat}
 \bibliography{references}
 
 \appendix

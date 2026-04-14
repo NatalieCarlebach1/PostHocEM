@@ -56,3 +56,7 @@ neurips/results/**/*.h5
 *.swp
 .DS_Store
 .claude/settings.local.json
+data/
+
+# Overleaf bundle (generated artifact — rebuild with `bash neurips/scripts/build_overleaf_zip.sh`)
+neurips/pem-neurips-overleaf.zip
