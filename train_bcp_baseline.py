@@ -68,6 +68,10 @@ def get_args():
                    help='Phase 2: full BCP with pseudo-labels')
 
     p.add_argument('--eval_every',      type=int,   default=10)
+    p.add_argument('--save_every',      type=int,   default=0,
+                   help='If >0, dump a trajectory checkpoint at every Nth '
+                        'epoch into <save_dir>/trajectory/epoch_<EEE>.pth. '
+                        'Used for the T1.3 rho_f-trajectory experiment.')
     p.add_argument('--save_dir',        default='result/bcp_baseline')
     p.add_argument('--gpu',             default='0')
     p.add_argument('--seed',            type=int,   default=2020)
@@ -358,6 +362,14 @@ def train(args):
                 torch.save(net_ema.state_dict(),
                            str(Path(args.save_dir) / 'best_ema_model.pth'))
                 log.info(f'  *** New best Dice={best_dice:.4f} — saved ***')
+
+            # ── Trajectory checkpoint dump (T1.3) ──────────────────────
+            if args.save_every > 0 and epoch % args.save_every == 0:
+                traj_dir = Path(args.save_dir) / 'trajectory'
+                traj_dir.mkdir(parents=True, exist_ok=True)
+                torch.save(net.state_dict(),
+                           str(traj_dir / f'epoch_{epoch:03d}.pth'))
+                log.info(f'  trajectory ckpt: epoch_{epoch:03d}.pth')
 
             # ── CSV log ──────────────────────────────────────────────────
             with open(csv_path, 'a') as f:
