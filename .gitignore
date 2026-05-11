@@ -4,9 +4,29 @@ data/*.zip
 *.pyc
 __pycache__/
 result/
-figures/
+/figures/
 *.egg-info/
 .DS_Store
-paper/
+/paper/
 .vscode/
 data/
+
+# NeurIPS subproject — paper + figures + scripts are tracked.
+# Only generated artifacts under neurips/ are ignored.
+neurips/pem-neurips-overleaf.zip
+neurips/paper/build/
+neurips/paper/*.aux
+neurips/paper/*.log
+neurips/paper/*.out
+neurips/paper/*.bbl
+neurips/paper/*.blg
+neurips/paper/*.toc
+neurips/paper/*.synctex.gz
+neurips/paper/*.fls
+neurips/paper/*.fdb_latexmk
+neurips/results/**/*.pth
+neurips/results/**/*.pt
+neurips/results/**/*.npy
+neurips/results/**/*.npz
+neurips/results/**/*.h5
+neurips/results/**/*.nii.gz
