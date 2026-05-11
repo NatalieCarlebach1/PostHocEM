@@ -161,6 +161,12 @@ def get_args():
                    help="Gradient clipping norm (prevents catastrophic updates)")
     p.add_argument("--decoder_only", action="store_true",
                    help="Freeze encoder, only fine-tune decoder + head during PEM")
+    p.add_argument("--tent_mode", action="store_true",
+                   help="TENT-style: freeze all weights except BatchNorm / "
+                        "InstanceNorm affine parameters (weight + bias). The "
+                        "entropy loss is unchanged. Used as a controlled "
+                        "post-hoc baseline isolating the contribution of "
+                        "full-parameter PEM vs normalization-only adaptation.")
     p.add_argument("--random_augment", action="store_true",
                    help="Use random crops + flips + shuffle for unlabeled data "
                         "(adds stochasticity, enables multi-seed ensembling)")
@@ -347,6 +353,41 @@ def main():
         net.apply(freeze_bn)
         teacher.apply(freeze_bn)
         log.info("LA: froze all BatchNorm layers (stats + params)")
+
+    # ── Optional TENT mode: freeze everything except normalization affine ──
+    # Wang et al., ICLR 2021. The PEM loss is unchanged; only the trainable
+    # parameter set changes. On Pancreas (InstanceNorm) and LA (BatchNorm),
+    # this collapses PEM to "fine-tune ~0.1% of parameters with entropy min".
+    if args.tent_mode:
+        if args.decoder_only:
+            raise ValueError("--tent_mode and --decoder_only are mutually exclusive")
+        import torch.nn as _nn
+        norm_layers = (_nn.BatchNorm1d, _nn.BatchNorm2d, _nn.BatchNorm3d,
+                       _nn.InstanceNorm1d, _nn.InstanceNorm2d, _nn.InstanceNorm3d,
+                       _nn.GroupNorm, _nn.LayerNorm)
+        # Freeze everything first
+        for p in net.parameters():
+            p.requires_grad_(False)
+        # Re-enable only norm-layer affine parameters
+        n_train = 0
+        for m in net.modules():
+            if isinstance(m, norm_layers):
+                if hasattr(m, 'weight') and m.weight is not None:
+                    m.weight.requires_grad_(True)
+                    n_train += m.weight.numel()
+                if hasattr(m, 'bias') and m.bias is not None:
+                    m.bias.requires_grad_(True)
+                    n_train += m.bias.numel()
+                # For BatchNorm: keep running stats but allow affine updates.
+                # On LA we additionally re-set the layer to train() mode so that
+                # the running stats are updated from the unlabeled set. On
+                # Pancreas (InstanceNorm) running stats are not used.
+                if args.dataset == 'la' and isinstance(
+                        m, (_nn.BatchNorm1d, _nn.BatchNorm2d, _nn.BatchNorm3d)):
+                    m.train()
+        n_total = sum(p.numel() for p in net.parameters())
+        log.info(f"TENT mode: training {n_train:,} norm-affine params "
+                 f"({100*n_train/n_total:.3f}% of {n_total:,} total)")
 
     # ── Optionally freeze encoder (decoder-only PEM) ────────────────────────
     if args.decoder_only:
