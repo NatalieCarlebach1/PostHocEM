@@ -23,19 +23,18 @@
 
 \title[Post-hoc Entropy Minimization for SSL Segmentation]{Post-hoc Entropy Minimization Improves Semi-Supervised Medical Image Segmentation}
 
-% TODO: fill in author info before submission
-\midlauthor{\Name{Author Name1\nametag{$^{1}$}} \Email{author1@example.edu}\\
-\Name{Author Name2\nametag{$^{1}$}} \Email{author2@example.edu}\\
-\addr $^{1}$ Institution Name}
+\midlauthor{\Name{Tal Shaharabany\nametag{$^{1}$}} \Email{shaharabany@mail.tau.ac.il}\\
+\Name{Natalie Carlebach} \Email{Nataliecarlebach@gmail.com}\\
+\Name{Lior Wolf\nametag{$^{1}$}} \Email{wolf@cs.tau.ac.il}\\
+\addr $^{1}$ Tel Aviv University, Israel}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-Semi-supervised learning (SSL) methods for medical image segmentation discard the unlabeled data at convergence, even though the model's predictions on it still contain residual uncertainty concentrated at organ boundaries.
-We show this residual entropy is spatially structured and exploit it with \textbf{Post-hoc Entropy Minimization (PEM)}: any converged SSL checkpoint, fine-tuned for $2$--$5$ epochs with a single entropy loss on unlabeled data --- no labels, no pseudo-labels, no architectural changes.
-Applied to the publicly released BCP~\cite{bai2023bcp} checkpoints with no test-set tuning, PEM improves Dice by $+1.12$ / $+1.43$ / $+0.64$ on Pancreas-CT 20\%, LA 5\%, LA 10\% and reduces HD95 by $27$--$43\%$, in under $5.2$\,min per run on a single GPU.
+Semi-supervised learning (SSL) methods for medical image segmentation discard the unlabeled data at convergence, even though the model's predictions on it still contain residual uncertainty concentrated at organ boundaries. We show this residual entropy is spatially structured and exploit it with \textbf{Post-hoc Entropy Minimization (PEM)}: any converged SSL checkpoint, fine-tuned for $2$--$5$ epochs with a single entropy loss on unlabeled data, no labels, no pseudo-labels, no architectural changes.
+Applied to the publicly released BCP checkpoints with no test tuning, PEM improves Dice by $+1.12$ / $+1.43$ / $+0.64$ on Pancreas-CT 20\%, LA 5\%, LA 10\% and reduces HD95 by $27$--$43\%$, in under $5$\,min per run on a single GPU.
 Against three controlled post-hoc baselines (temperature scaling, pseudo-label fine-tune, self-consistency), PEM attains the largest mean gain on the two less-saturated configurations.
 \end{abstract}
 
@@ -67,7 +66,7 @@ For a checkpoint $f_{\theta^*}$, unlabeled volume $\mathbf{x}\in\mathcal{U}$, pe
 \end{equation}
 $\rho_f(\tau)$ is the fraction of total prediction entropy carried by voxels of confidence at most $\tau$; it is label-free, self-localizing (on a converged network, low-confidence voxels lie near decision boundaries), and scalar. We use $\tau\!=\!0.99$ throughout, with $\rho^\star\!=\!0.85$ as a suitability threshold.
 Tab.~\ref{tab:entropy} shows the three BCP checkpoints concentrate $\rho_f(0.99)\!\in\!\{0.894,0.948,0.945\}$ while a supervised-only VNet on the same $12$ Pancreas-CT labels attains only $0.552$; uncertain voxels in the latter lie on average $14.5$ voxels from any decision boundary (vs.\ $5$--$11$ for SSL).
-For a binary voxel with logit $z$ and probability $p\!=\!\sigma(z)$, $\partial H/\partial z\!=\!-z\,p(1\!-\!p)$: the update vanishes as $p\!\to\!0$ or $1$ and peaks at $p\!=\!0.5$, so the $p(1\!-\!p)$ factor is an implicit boundary-shell mask equivalent to $m_i$, and no class-balance regularizer is needed. Because the feature-space decision surface co-locates with the organ surface in 3D segmentation, PEM implements the cluster assumption~\cite{chapelle2006ssl,grandvalet2004entropy} at the organ surface; when residual entropy is diffuse ($\rho_f\!\lesssim\!0.6$) sharpening reinforces existing errors.
+For a binary voxel with logit $z$ and probability $p\!=\!\sigma(z)$, $\partial H/\partial z\!=\!-z\,p(1\!-\!p)$: the update vanishes as $p\!\to\!0$ or $1$ and peaks at $p\!=\!0.5$, so the $p(1\!-\!p)$ factor is an implicit boundary-shell mask equivalent to $m_i$, and no class-balance regularizer is needed. Because the feature-space decision surface co-locates with the organ surface in 3D segmentation, PEM implements the cluster assumption~\cite{chapelle2009semi,grandvalet2004entropy} at the organ surface; when residual entropy is diffuse ($\rho_f\!\lesssim\!0.6$) sharpening reinforces existing errors.
 
 \begin{table}[htbp]
 \floatconts
@@ -90,12 +89,10 @@ For a binary voxel with logit $z$ and probability $p\!=\!\sigma(z)$, $\partial H
 \section{Experiments}
 \label{sec:experiments}
 
-\noindent\textbf{Setup.} We fine-tune the released BCP~\cite{bai2023bcp} checkpoints on Pancreas-CT~\cite{roth2015pancreas} (VNet-IN, $12$/$50$/$18$) and LA 2018 (VNet-BN, $4$ or $8$/rest/$20$) with BCP's canonical preprocessing. Adam (no WD, no schedule), grad-clip $1$, LRs $5{\times}10^{-5}$/$1{\times}10^{-5}$ (Pancreas/LA) chosen via $5$-fold CV on labeled folds; LA BN stats frozen. Epoch budget fixed \emph{a priori} at $E{=}2$/$5$; PEM rows are the mean over seeds $\{2020,42,123\}$. Sliding-window inference with BCP's original strides, no TTA; runs take $\leq\!5.2$\,min on a single RTX $4070$\,Ti SUPER. We compare against BCP because MOST~\cite{liu2024most} and DyCON~\cite{assefa2025dycon} release training code only; code at \url{<anonymized>}.
-
-\noindent\textbf{Post-hoc baselines.} Same BCP checkpoint, same budget, same LR/data as PEM:
+\noindent\textbf{Setup.} We fine-tune the released BCP~\cite{bai2023bcp} checkpoints on Pancreas-CT~\cite{roth2015pancreas} (VNet-IN, $12$/$50$/$18$) and LA 2018 (VNet-BN, $4$ or $8$/rest/$20$) with BCP's canonical preprocessing. Adam (no WD, no schedule), grad-clip $1$, LRs $5{\times}10^{-5}$/$1{\times}10^{-5}$ (Pancreas/LA) chosen via $5$-fold CV on labeled folds; LA BN stats frozen. Epoch budget fixed \emph{a priori} at $E{=}2$/$5$; PEM rows are the mean over seeds $\{2020,42,123\}$. Sliding-window inference with BCP's original strides, no TTA; runs take $\leq\!5.2$\,min on a single RTX $4070$\,Ti SUPER. We compare against BCP because MOST~\cite{liu2024most} and DyCON~\cite{assefa2025dycon} release training code only. Same BCP checkpoint, same budget, same LR/data as PEM:
 \textbf{TS} optimizes a scalar $T$ on unlabeled entropy (cannot alter argmax);
-\textbf{PL-FT} generates hard pseudo-labels (argmax$+$largest CC) and fine-tunes with CE$+$Dice;
-\textbf{SC} minimizes MSE between student-on-noised and frozen-teacher-on-clean forwards.
+\textbf{PL-FT} generates pseudo-labels (argmax$+$largest CC) and fine-tunes with CE$+$Dice;
+\textbf{SC} minimizes MSE between the student-on-noised and frozen-teacher-on-clean forwards.
 
 \noindent\textbf{Results (Tab.~\ref{tab:main}).}
 TS produces $|\Delta\mathrm{Dice}|{\le}0.03$ on all settings, so PEM's gain must come from parameter updates at boundary voxels rather than recalibration.
