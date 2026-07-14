@@ -19,7 +19,7 @@ plt.rcParams.update({
     "font.family":"serif",
 })
 
-fig, (a1, a2) = plt.subplots(1, 2, figsize=(3.45, 1.55))
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(3.45, 1.32))
 
 for k, d in (("panc",panc),("la5",la5),("la10",la10)):
     a1.plot(d["ep"], d["dice"], marker=M[k], color=C[k], label=L[k], clip_on=False)
