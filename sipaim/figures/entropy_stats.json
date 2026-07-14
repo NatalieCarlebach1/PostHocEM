@@ -1,0 +1,34 @@
+[
+  {
+    "name": "BCP Pancreas-CT 20%",
+    "volumes_analyzed": 20,
+    "saturated_pct": 94.95439112192406,
+    "uncertain_pct": 5.045608878075939,
+    "shell_entropy_share_pct": 89.4282985543211,
+    "mean_distance_to_boundary_voxels": 10.56239981243424
+  },
+  {
+    "name": "Supervised-only Pancreas-CT (no SSL)",
+    "volumes_analyzed": 20,
+    "saturated_pct": 90.73147911730413,
+    "uncertain_pct": 9.268520882695867,
+    "shell_entropy_share_pct": 55.16970480027648,
+    "mean_distance_to_boundary_voxels": 14.45458384245273
+  },
+  {
+    "name": "BCP LA 5%",
+    "volumes_analyzed": 20,
+    "saturated_pct": 91.75202704792477,
+    "uncertain_pct": 8.24797295207523,
+    "shell_entropy_share_pct": 94.75554108925287,
+    "mean_distance_to_boundary_voxels": 5.186754835928662
+  },
+  {
+    "name": "BCP LA 10%",
+    "volumes_analyzed": 20,
+    "saturated_pct": 91.40012491137826,
+    "uncertain_pct": 8.599875088621744,
+    "shell_entropy_share_pct": 94.45672038318332,
+    "mean_distance_to_boundary_voxels": 5.955010378214862
+  }
+]
