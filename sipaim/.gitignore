@@ -8,3 +8,6 @@
 page-*.png
 build*.log
 bib.log
+
+# keep source figures (not the compiled main.pdf)
+!figures/*.pdf

@@ -11,12 +11,21 @@
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
 
-\graphicspath{{figures/panels/}}
+\graphicspath{{figures/}{figures/panels/}}
 
 \newcommand{\cmark}{{\color{green!60!black}\ding{51}}}
 \newcommand{\xmark}{{\color{red}\ding{55}}}
 
 \newtheorem{proposition}{Proposition}
+
+% Allow floats to pack more densely so content fits 4 pages
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.9}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.9}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
 
 \begin{document}
 
@@ -55,7 +64,7 @@ semi-supervised learning, medical image segmentation, entropy minimization, post
 \label{sec:intro}
 Manual voxel-level annotation of 3D medical scans is slow and expensive, which makes semi-supervised learning (SSL) --- training from a small labeled set together with a large unlabeled set --- a practical necessity for volumetric segmentation. Recent SSL methods for this task~\cite{tarvainen2017meanteacher,yu2019uamt,bai2023bcp,liu2024most,assefa2025dycon} reach strong accuracy by using the unlabeled data during training and then discarding it at convergence.
 
-We make a complementary observation: at convergence, a well-trained SSL model still assigns non-trivial prediction entropy to the unlabeled volumes, and this entropy is not uniformly spread. It is concentrated in a thin shell of low-confidence voxels lying on the predicted organ boundary. This concentration is a property of SSL convergence rather than of any single method, and it is exactly the condition under which a label-free sharpening step is well-behaved: the loss gradient it produces is already aligned with the locus of segmentation error.
+We make a complementary observation: at convergence, a well-trained SSL model still assigns non-trivial prediction entropy to the unlabeled volumes, concentrated in a thin shell of low-confidence voxels on the predicted organ boundary. This concentration is a property of SSL convergence, not of any single method, and it is exactly the condition under which a label-free sharpening step is well-behaved --- the gradient it produces is already aligned with the locus of segmentation error.
 
 We exploit this with \textit{Post-hoc Entropy Minimization} (PEM). Given any converged SSL checkpoint, PEM fine-tunes it for a few epochs on the unlabeled data with a single entropy-minimization objective. It requires no labels, no pseudo-labels, no thresholds, and no changes to the network. It runs in minutes on one GPU and can be applied on top of a released checkpoint without retraining. Entropy minimization itself is classical~\cite{grandvalet2004entropy,sohn2020fixmatch}; our contribution is identifying its correct \textit{operating regime} --- a converged optimum whose residual entropy is already structurally concentrated --- and showing that in this regime the same loss needs no masking, curriculum, or class-balance regularizer.
 
@@ -75,7 +84,7 @@ Two mechanisms dominate: \emph{consistency regularization}, where a student netw
 Entropy minimization~\cite{grandvalet2004entropy} adds $-\lambda H(Y\mid X)$ on unlabeled data and implements the low-density-separation principle of the cluster assumption~\cite{chapelle2006ssl}; Pseudo-Label~\cite{lee2013pseudolabel} is its hard-target limit, and modern methods such as MixMatch~\cite{berthelot2019mixmatch} and FixMatch~\cite{sohn2020fixmatch} sharpen predictions to form pseudo-targets. In all of these the entropy term is active \emph{during} training, coupled to a supervised or consistency loss that prevents posterior collapse, and requires careful balancing over time. PEM uses the same formal loss but in a different regime: applied to an already-converged checkpoint, the residual entropy it sees is concentrated at boundaries, so the gradient is self-localized and none of the usual stabilizing machinery is needed.
 
 \noindent\textbf{Test-time adaptation.}
-The closest methodology is test-time adaptation. TENT~\cite{wang2021tent} minimizes prediction entropy on a test stream by updating only normalization parameters; TTT~\cite{sun2020ttt} and CoTTA~\cite{wang2022cotta} use auxiliary objectives or continual updates. The loss is shared, but the problem is not: test-time adaptation assumes a \emph{distribution shift} and recovers accuracy lost to it, updating a subset of parameters against a moving test stream. PEM makes no shift assumption --- it operates on unlabeled data from the training distribution --- updates all parameters, and produces a single deployable checkpoint evaluated with frozen weights against the original benchmark's test set.
+The closest methodology is test-time adaptation. TENT~\cite{wang2021tent} minimizes prediction entropy on a test stream by updating only normalization parameters, and related methods use auxiliary objectives or continual updates. The loss is shared, but the problem is not: test-time adaptation assumes a \emph{distribution shift} and recovers accuracy lost to it, updating a subset of parameters against a moving test stream. PEM makes no shift assumption, operates on training-distribution unlabeled data, updates all parameters, and yields a single frozen-weights checkpoint evaluated on the benchmark's test set.
 
 \noindent\textbf{Post-hoc calibration and refinement.}
 Temperature scaling~\cite{guo2017calibration} rescales logits by a scalar and, being monotone, cannot change the argmax and therefore cannot move any overlap metric; we include it as a controlled baseline to rule out recalibration as an explanation. Stochastic weight averaging~\cite{izmailov2018swa} and self-distillation~\cite{hinton2015distillation} refine a trained model without new labels but either need the training trajectory or perform hard-target distillation, which is closer to our pseudo-label baseline than to PEM.
@@ -115,7 +124,7 @@ For the unmasked PEM loss ($\tau{=}1$), the magnitude of each voxel's gradient c
 
 Proposition~\ref{prop:gate} has three consequences. \emph{(i) No class-balance term is needed}: a voxel already saturated by SSL training has $p(1{-}p)\approx0$ and cannot be driven further, so a converged checkpoint cannot collapse to a single class --- the classical objection to unmasked entropy minimization~\cite{grandvalet2004entropy} does not apply post-hoc. \emph{(ii) The gradient shrinks as the model saturates}: with $\bar V=\mathbb{E}_i[p_i(1{-}p_i)]$, the update scales as $O(\bar V)$, so as $\rho_f(0.99)\to1$ and $\bar V\to0$ the gains diminish and pseudo-label fine-tuning, whose gradient is $O(1)$, becomes competitive. \emph{(iii) Boundary refinement vs.\ relocation}: on a boundary voxel the step has the sign of $z_i$ and commits it to the currently more probable class. If SSL convergence placed the boundary in the right neighborhood, PEM refines it; if not (a supervised-only checkpoint with diffuse $\rho_f$), it reinforces the error.
 
-Because partial-volume averaging, point-spread blur, and weak soft-tissue contrast make exactly the anatomical-boundary voxels ambiguous in feature space, the network's feature-space decision surface co-locates with the physical organ surface in 3D segmentation. Entropy minimization at that surface therefore implements the cluster assumption~\cite{chapelle2006ssl,grandvalet2004entropy} as anatomical boundary refinement, and $\rho_f$ measures precisely whether the uncertain voxels form the thin physical shell (refinement) or are scattered through the interior (relocation).
+Because partial-volume averaging and weak soft-tissue contrast make exactly the anatomical-boundary voxels ambiguous in feature space, the network's decision surface co-locates with the physical organ surface in 3D segmentation. Entropy minimization there implements the cluster assumption~\cite{chapelle2006ssl,grandvalet2004entropy} as boundary refinement, and $\rho_f$ measures whether the uncertain voxels form the thin physical shell (refinement) or are scattered through the interior (relocation).
 
 \section{Datasets and Implementation}
 \label{sec:data}
@@ -137,7 +146,7 @@ We compare against BCP because MOST~\cite{liu2024most} and DyCON~\cite{assefa202
 \noindent\textbf{Residual entropy is concentrated (Table~\ref{tab:entropy}).}
 On the unlabeled training volumes, the three released BCP checkpoints carry $89$--$95\%$ of their total prediction entropy in a thin shell of only $5$--$9\%$ of the voxels, giving $\rho_f(0.99)\in\{0.894,0.948,0.945\}$. A supervised-only V-Net trained on the same 12 Pancreas-CT labels carries only $55\%$ of its entropy in the corresponding shell ($\rho_f=0.552$), and its uncertain voxels lie on average $14.5$ voxels from any boundary (versus $5$--$11$ for the SSL checkpoints). All three SSL checkpoints clear $\rho^\star=0.85$; the supervised baseline does not.
 
-\begin{table}[t]
+\begin{table}[tb]
 \centering
 \caption{Shell entropy concentration $\rho_f(\tau)$ on unlabeled training volumes. \textbf{Sat\%}: fraction of voxels with $c_i>0.99$. $\bar d$: mean distance from uncertain voxels to the predicted boundary (voxels). The three SSL checkpoints clear $\rho^\star{=}0.85$; the supervised baseline does not.}
 \label{tab:entropy}
@@ -156,12 +165,12 @@ BCP LA 10\%                 & 91.4 & 8.6 & \textbf{0.945}~\cmark & ~5.96 \\
 \end{table}
 
 \noindent\textbf{The diagnostic is predictive.}
-Applying PEM to the supervised checkpoint ($\rho_f=0.552$, below $\rho^\star$) \emph{reduces} its Dice from $75.66$ to $69.41$ ($-6.25$ points) within one epoch: when the uncertain voxels do not form a boundary shell, sharpening reinforces errors, exactly as consequence (iii) predicts. This label-free forward-pass check therefore tells a practitioner in advance whether PEM will help a given checkpoint.
+Applying PEM to the supervised checkpoint ($\rho_f=0.552$, below $\rho^\star$) \emph{reduces} its Dice from $75.66$ to $69.41$ ($-6.25$ points) within one epoch: when the uncertain voxels do not form a boundary shell, sharpening reinforces errors, exactly as consequence (iii) predicts. A practitioner can thus run this label-free check before committing to PEM.
 
 \noindent\textbf{PEM improves every SSL checkpoint (Table~\ref{tab:main}).}
-TS produces $|\Delta\text{Dice}|\le0.03$ on all settings, confirming that PEM's gain comes from parameter updates at boundary voxels rather than recalibration; we therefore omit its row. PEM attains the largest Dice and HD95 improvement on the two less-saturated configurations ($+1.12$ and $+1.27$ Dice, versus $+0.50$ and $+0.90$ for PL-FT). On the most saturated setting, LA 10\% (BCP at $89.40$), PL-FT marginally exceeds PEM ($+0.68$ versus $+0.62$) with overlapping bootstrap confidence intervals --- consistent with the soft $p(1-p)$ gradient shrinking as $\rho_f\to1$ [consequence (ii)]. Across three seeds PEM is stable ($84.01\pm0.00$, $88.59\pm0.25$, $90.02\pm0.07$), and a per-case paired analysis ($N=18$--$20$; Wilcoxon $p<0.025$; confidence-interval lower bound $\ge+0.18$; effect size $d_z\in[0.57,0.71]$; $13$--$16$ wins) confirms the gain on all three settings. Fig.~\ref{fig:qual} shows the boundary sharpening qualitatively.
+TS produces $|\Delta\text{Dice}|\le0.03$ everywhere, confirming that PEM's gain comes from parameter updates at boundary voxels rather than recalibration; we omit its row. PEM attains the largest Dice and HD95 improvement on the two less-saturated configurations ($+1.12$ and $+1.27$ Dice, versus $+0.50$ and $+0.90$ for PL-FT); on the most saturated setting (LA 10\%) PL-FT marginally exceeds PEM ($+0.68$ versus $+0.62$) with overlapping bootstrap intervals, consistent with the $p(1{-}p)$ gradient shrinking as $\rho_f\to1$ [consequence (ii)]. PEM is stable across three seeds ($84.01\pm0.00$, $88.59\pm0.25$, $90.02\pm0.07$), and a per-case paired analysis ($N{=}18$--$20$; Wilcoxon $p<0.025$; $d_z\in[0.57,0.71]$; $13$--$16$ wins) confirms the gain on all three settings (Fig.~\ref{fig:qual}).
 
-\begin{table}[t]
+\begin{table}[tb]
 \centering
 \caption{Post-hoc methods on the released BCP checkpoints under an identical fixed-budget protocol. TS omitted (Dice change $|\Delta|{\le}0.03$ everywhere). Boldface marks the best Dice per setting. PEM wins the two less-saturated configurations and overlaps PL-FT (confidence interval) on the saturated LA 10\%.}
 \label{tab:main}
@@ -192,7 +201,7 @@ BCP (released ckpt)          & 89.40 & 80.92 &  9.88 & 2.86 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure}[tb]
 \centering
 \setlength{\tabcolsep}{1pt}
 \renewcommand{\arraystretch}{0.4}
@@ -200,29 +209,29 @@ BCP (released ckpt)          & 89.40 & 80.92 &  9.88 & 2.86 \\
 \begin{tabular}{@{}c@{\hskip1pt}cccc@{}}
 & Input & Ground truth & BCP & BCP\,$+$\,PEM \\
 \rotatebox{90}{\scriptsize Pancreas} &
-\includegraphics[width=0.205\linewidth]{pancreas_ct_20pct_image.png} &
-\includegraphics[width=0.205\linewidth]{pancreas_ct_20pct_gt.png} &
-\includegraphics[width=0.205\linewidth]{pancreas_ct_20pct_bcp.png} &
-\includegraphics[width=0.205\linewidth]{pancreas_ct_20pct_pem.png} \\
+\includegraphics[width=0.183\linewidth]{pancreas_ct_20pct_image.png} &
+\includegraphics[width=0.183\linewidth]{pancreas_ct_20pct_gt.png} &
+\includegraphics[width=0.183\linewidth]{pancreas_ct_20pct_bcp.png} &
+\includegraphics[width=0.183\linewidth]{pancreas_ct_20pct_pem.png} \\
 \rotatebox{90}{\scriptsize LA 5\%} &
-\includegraphics[width=0.205\linewidth]{la_5pct_image.png} &
-\includegraphics[width=0.205\linewidth]{la_5pct_gt.png} &
-\includegraphics[width=0.205\linewidth]{la_5pct_bcp.png} &
-\includegraphics[width=0.205\linewidth]{la_5pct_pem.png} \\
+\includegraphics[width=0.183\linewidth]{la_5pct_image.png} &
+\includegraphics[width=0.183\linewidth]{la_5pct_gt.png} &
+\includegraphics[width=0.183\linewidth]{la_5pct_bcp.png} &
+\includegraphics[width=0.183\linewidth]{la_5pct_pem.png} \\
 \rotatebox{90}{\scriptsize LA 10\%} &
-\includegraphics[width=0.205\linewidth]{la_10pct_image.png} &
-\includegraphics[width=0.205\linewidth]{la_10pct_gt.png} &
-\includegraphics[width=0.205\linewidth]{la_10pct_bcp.png} &
-\includegraphics[width=0.205\linewidth]{la_10pct_pem.png} \\
+\includegraphics[width=0.183\linewidth]{la_10pct_image.png} &
+\includegraphics[width=0.183\linewidth]{la_10pct_gt.png} &
+\includegraphics[width=0.183\linewidth]{la_10pct_bcp.png} &
+\includegraphics[width=0.183\linewidth]{la_10pct_pem.png} \\
 \end{tabular}
 \caption{Qualitative results. PEM sharpens the predicted organ boundary relative to the BCP checkpoint on all three configurations, with no labels or pseudo-labels.}
 \label{fig:qual}
 \end{figure}
 
 \noindent\textbf{Mask and threshold ablation (Table~\ref{tab:ablation}).}
-Restricting the loss to the confidence shell helps: at the reported learning rate, the confident-shell mask beats the unmasked (full) loss on both LA settings, with a sweet spot near $\tau=0.95$; $\tau=0.999$ discards the shell and $\tau=0.90$ admits saturated noise. The learning rate has a hard floor: below $10^{-6}$ the collapse-protection triggers and no update occurs (all deltas $0.0$), while above $5\times10^{-5}$ the boundary is relocated rather than refined. We fix $\tau=0.99$ \textit{a priori}; the ablation shows a tuned $\tau=0.95$ would yield a larger gain ($+1.61$ on LA 5\%), which we do not claim in order to avoid test-set tuning. Two further design choices are confirmed on Pancreas-CT: (a) on a converged checkpoint the student and its EMA teacher agree almost everywhere, so a disagreement mask~\cite{yu2019uamt} is nearly empty and yields no update --- the confidence shell is the correct post-hoc mask; and (b) updating only the decoder or only the EMA weights gives $\le0$ gain, so PEM updates all student parameters, unlike normalization-only test-time adaptation~\cite{wang2021tent}. Dice is monotonic in $E$ up to a peak at $E=8$; we report the more conservative \textit{a priori} $E=5$.
+Restricting the loss to the confidence shell helps: at the reported learning rate, the confident-shell mask beats the unmasked (full) loss on both LA settings, with a sweet spot near $\tau=0.95$; $\tau=0.999$ discards the shell and $\tau=0.90$ admits saturated noise. The learning rate has a hard floor: below $10^{-6}$ no update occurs (all deltas $0.0$), while above $5\times10^{-5}$ the boundary is relocated rather than refined. We fix $\tau=0.99$ \textit{a priori}; the ablation shows a tuned $\tau=0.95$ would yield a larger gain ($+1.61$ on LA 5\%), which we do not claim, to avoid test-set tuning. Two design choices are confirmed on Pancreas-CT: (a) on a converged checkpoint the student and its EMA teacher agree almost everywhere, so a disagreement mask~\cite{yu2019uamt} is nearly empty and yields no update --- the confidence shell is the correct post-hoc mask; and (b) updating only the decoder or the EMA weights gives $\le0$ gain, so PEM updates all student parameters (unlike normalization-only TTA~\cite{wang2021tent}). Dice is monotonic in $E$ up to a peak at $E=8$; we report the more conservative \textit{a priori} $E=5$.
 
-\begin{table}[t]
+\begin{table}[tb]
 \centering
 \caption{Ablation on the confidence-shell mask (peak $\Delta$Dice over the fine-tuning budget, LA, learning rate $10^{-5}$). The confident-shell mask beats the unmasked loss, peaking near $\tau{=}0.95$. At learning rate ${\le}10^{-6}$ no update occurs on either setting.}
 \label{tab:ablation}
@@ -241,11 +250,21 @@ Confident, $\tau{=}0.999$    & $+1.02$ & $+0.37$ \\
 \end{tabular}
 \end{table}
 
+\noindent\textbf{Convergence is immediate (Fig.~\ref{fig:curves}).}
+Most of the gain arrives in the first epoch: HD95 drops sharply at epoch~$1$ (e.g.\ $13.9\!\to\!8.4$ voxels on LA 5\%) while Dice rises monotonically and plateaus within the budget, confirming that $E\!\in\!\{2,5\}$ suffices and that the gain is a stable refinement rather than a lucky early stop.
+
+\begin{figure}[tb]
+\centering
+\includegraphics[width=\linewidth]{pem_curves.pdf}
+\caption{PEM fine-tuning trajectories (representative run, seed $2020$). Overlap (Dice) and boundary quality (HD95) improve within the first one to two epochs and plateau inside the fixed budget on all three checkpoints; epoch~$0$ is the released BCP checkpoint.}
+\label{fig:curves}
+\end{figure}
+
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
-We showed that converged SSL checkpoints leave a structured, boundary-localized residual entropy on their unlabeled data, quantified it with the label-free diagnostic $\rho_f(\tau)$, and exploited it with Post-hoc Entropy Minimization. Whenever $\rho_f(0.99)$ clears the suitability threshold --- as it does for all three released BCP checkpoints, at $0.894$--$0.948$ versus $0.552$ for a supervised-only baseline --- a few minutes of label-free, pseudo-label-free, tuning-free fine-tuning improves the Dice score by $+0.6$ to $+1.3$ points and reduces HD95 by $27$--$43\%$.
+We showed that converged SSL checkpoints leave a structured, boundary-localized residual entropy on their unlabeled data, quantified it with the label-free diagnostic $\rho_f(\tau)$, and exploited it with Post-hoc Entropy Minimization. Whenever $\rho_f(0.99)$ clears the threshold --- as it does for all three released BCP checkpoints ($0.894$--$0.948$) but not for a supervised baseline ($0.552$) --- a few minutes of label-free fine-tuning improves Dice by $+0.6$ to $+1.3$ points and reduces HD95 by $27$--$43\%$.
 
-PEM has two predictable failure modes, both diagnosable from a single label-free forward pass and both borne out above: diffuse residual entropy ($\rho_f\lesssim0.6$, as on the supervised checkpoint, where PEM reduces Dice by $6.25$ points), and vanishing residual entropy ($\rho_f\to1$, as on the saturated LA 10\% setting, where pseudo-label fine-tuning becomes competitive). Because $\rho_f$ is computed without labels, practitioners can decide in advance whether PEM will help a given checkpoint. A limitation of the present study is that our head-to-head comparison is against BCP, since stronger recent methods release training code only; extending PEM across additional released checkpoints is left to future work.
+PEM has two predictable failure modes, both diagnosable from a single label-free forward pass and both borne out above: diffuse residual entropy ($\rho_f\lesssim0.6$, as on the supervised checkpoint, where PEM reduces Dice by $6.25$ points), and vanishing residual entropy ($\rho_f\to1$, as on the saturated LA 10\% setting, where pseudo-label fine-tuning becomes competitive). A limitation of the present study is that our head-to-head comparison is against BCP, since stronger recent methods release training code only; extending PEM across additional released checkpoints is left to future work.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
