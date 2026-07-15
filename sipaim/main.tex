@@ -143,6 +143,40 @@ We compare against BCP because MOST~\cite{liu2024most} and DyCON~\cite{assefa202
 
 \section{Experiments and Results}
 \label{sec:experiments}
+
+\begin{figure}[t]
+\centering
+\setlength{\tabcolsep}{0.8pt}
+\renewcommand{\arraystretch}{0.5}
+\scriptsize
+\begin{tabular}{@{}c@{\hskip1pt}cccccc@{}}
+& Image & GT & BCP & PEM & Entropy & Corr. \\
+\rotatebox{90}{\tiny\;Pancreas} &
+\includegraphics[width=0.150\linewidth]{pancreas_ct_20pct_image.png} &
+\includegraphics[width=0.150\linewidth]{pancreas_ct_20pct_gt.png} &
+\includegraphics[width=0.150\linewidth]{pancreas_ct_20pct_bcp.png} &
+\includegraphics[width=0.150\linewidth]{pancreas_ct_20pct_pem.png} &
+\includegraphics[width=0.150\linewidth]{pancreas_ct_20pct_entropy.png} &
+\includegraphics[width=0.150\linewidth]{pancreas_ct_20pct_corr.png} \\
+\rotatebox{90}{\tiny\;\;LA 5\%} &
+\includegraphics[width=0.150\linewidth]{la_5pct_image.png} &
+\includegraphics[width=0.150\linewidth]{la_5pct_gt.png} &
+\includegraphics[width=0.150\linewidth]{la_5pct_bcp.png} &
+\includegraphics[width=0.150\linewidth]{la_5pct_pem.png} &
+\includegraphics[width=0.150\linewidth]{la_5pct_entropy.png} &
+\includegraphics[width=0.150\linewidth]{la_5pct_corr.png} \\
+\rotatebox{90}{\tiny\;LA 10\%} &
+\includegraphics[width=0.150\linewidth]{la_10pct_image.png} &
+\includegraphics[width=0.150\linewidth]{la_10pct_gt.png} &
+\includegraphics[width=0.150\linewidth]{la_10pct_bcp.png} &
+\includegraphics[width=0.150\linewidth]{la_10pct_pem.png} &
+\includegraphics[width=0.150\linewidth]{la_10pct_entropy.png} &
+\includegraphics[width=0.150\linewidth]{la_10pct_corr.png} \\
+\end{tabular}
+\caption{Qualitative results on the \emph{median}-improvement test case per configuration (per-case Dice overlaid; parenthesis = PEM gain). Columns: image, ground truth (green), BCP (red), BCP$+$PEM (cyan); \textbf{Entropy} of BCP (magma: the boundary shell, $\rho_f\!\approx\!0.9$); and \textbf{Corr.} (green = PEM fixes, red = PEM breaks). See text.}
+\label{fig:qual}
+\end{figure}
+
 \noindent\textbf{Residual entropy is concentrated (Table~\ref{tab:entropy}).}
 On the unlabeled training volumes, the three released BCP checkpoints carry $89$--$95\%$ of their total prediction entropy in a thin shell of only $5$--$9\%$ of the voxels, giving $\rho_f(0.99)\in\{0.894,0.948,0.945\}$. A supervised-only V-Net trained on the same 12 Pancreas-CT labels carries only $55\%$ of its entropy in the corresponding shell ($\rho_f=0.552$), and its uncertain voxels lie on average $14.5$ voxels from any boundary (versus $5$--$11$ for the SSL checkpoints). All three SSL checkpoints clear $\rho^\star=0.85$; the supervised baseline does not.
 
@@ -168,7 +202,10 @@ BCP LA 10\%                 & 91.4 & 8.6 & \textbf{0.945}~\cmark & ~5.96 \\
 Applying PEM to the supervised checkpoint ($\rho_f=0.552$, below $\rho^\star$) \emph{reduces} its Dice from $75.66$ to $69.41$ ($-6.25$ points) within one epoch: when the uncertain voxels do not form a boundary shell, sharpening reinforces errors, exactly as consequence (iii) predicts. A practitioner can thus run this label-free check before committing to PEM.
 
 \noindent\textbf{PEM improves every SSL checkpoint (Table~\ref{tab:main}).}
-TS produces $|\Delta\text{Dice}|\le0.03$ everywhere, confirming that PEM's gain comes from parameter updates at boundary voxels rather than recalibration; we omit its row. PEM attains the largest Dice and HD95 improvement on the two less-saturated configurations ($+1.12$ and $+1.27$ Dice, versus $+0.50$ and $+0.90$ for PL-FT); on the most saturated setting (LA 10\%) PL-FT marginally exceeds PEM ($+0.68$ versus $+0.62$) with overlapping bootstrap intervals, consistent with the $p(1{-}p)$ gradient shrinking as $\rho_f\to1$ [consequence (ii)]. PEM is stable across three seeds ($84.01\pm0.00$, $88.59\pm0.25$, $90.02\pm0.07$), and a per-case paired analysis ($N{=}18$--$20$; Wilcoxon $p<0.025$; $d_z\in[0.57,0.71]$; $13$--$16$ wins) confirms the gain on all three settings (Fig.~\ref{fig:qual}).
+TS produces $|\Delta\text{Dice}|\le0.03$ everywhere, confirming that PEM's gain comes from parameter updates at boundary voxels rather than recalibration; we omit its row. PEM attains the largest Dice and HD95 improvement on the two less-saturated configurations ($+1.12$ and $+1.27$ Dice, versus $+0.50$ and $+0.90$ for PL-FT); on the most saturated setting (LA 10\%) PL-FT marginally exceeds PEM ($+0.68$ versus $+0.62$) with overlapping bootstrap intervals, consistent with the $p(1{-}p)$ gradient shrinking as $\rho_f\to1$ [consequence (ii)]. PEM is stable across three seeds ($84.01\pm0.00$, $88.59\pm0.25$, $90.02\pm0.07$), and a per-case paired analysis ($N{=}18$--$20$; Wilcoxon $p<0.025$; $d_z\in[0.57,0.71]$; $13$--$16$ wins) confirms the gain on all three settings.
+
+\noindent\textbf{What the qualitative maps show (Fig.~\ref{fig:qual}).}
+Three things are visible. First, the entropy column makes the diagnostic concrete: the BCP checkpoint's residual entropy forms a thin bright shell on the predicted boundary while the interior is saturated --- $\rho_f(0.99)\!\approx\!0.9$ in image space --- and this is exactly the shell the $p(1{-}p)$ gradient acts on. Second, the BCP (red) and BCP$+$PEM (cyan) contours show PEM tightening the boundary toward the ground truth (green), trimming over-segmentation on Pancreas and recovering an under-segmented rim on LA 5\%. Third, the correction column isolates the net change: green (PEM right where BCP erred) outnumbers red on the two less-saturated settings and stays on the boundary band; on the saturated LA 10\% both are sparse, the visual counterpart of the gain vanishing as $\rho_f\!\to\!1$.
 
 \begin{table}[tb]
 \centering
@@ -201,33 +238,6 @@ BCP (released ckpt)          & 89.40 & 80.92 &  9.88 & 2.86 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[tb]
-\centering
-\setlength{\tabcolsep}{1pt}
-\renewcommand{\arraystretch}{0.4}
-\footnotesize
-\begin{tabular}{@{}c@{\hskip1pt}cccc@{}}
-& Input & Ground truth & BCP & BCP\,$+$\,PEM \\
-\rotatebox{90}{\scriptsize Pancreas} &
-\includegraphics[width=0.172\linewidth]{pancreas_ct_20pct_image.png} &
-\includegraphics[width=0.172\linewidth]{pancreas_ct_20pct_gt.png} &
-\includegraphics[width=0.172\linewidth]{pancreas_ct_20pct_bcp.png} &
-\includegraphics[width=0.172\linewidth]{pancreas_ct_20pct_pem.png} \\
-\rotatebox{90}{\scriptsize LA 5\%} &
-\includegraphics[width=0.172\linewidth]{la_5pct_image.png} &
-\includegraphics[width=0.172\linewidth]{la_5pct_gt.png} &
-\includegraphics[width=0.172\linewidth]{la_5pct_bcp.png} &
-\includegraphics[width=0.172\linewidth]{la_5pct_pem.png} \\
-\rotatebox{90}{\scriptsize LA 10\%} &
-\includegraphics[width=0.172\linewidth]{la_10pct_image.png} &
-\includegraphics[width=0.172\linewidth]{la_10pct_gt.png} &
-\includegraphics[width=0.172\linewidth]{la_10pct_bcp.png} &
-\includegraphics[width=0.172\linewidth]{la_10pct_pem.png} \\
-\end{tabular}
-\caption{Qualitative results. PEM sharpens the predicted organ boundary relative to the BCP checkpoint on all three configurations, with no labels or pseudo-labels.}
-\label{fig:qual}
-\end{figure}
-
 \noindent\textbf{Mask and threshold ablation (Table~\ref{tab:ablation}).}
 Restricting the loss to the confidence shell helps: the confident-shell mask beats the unmasked (full) loss at every learning rate, with a sweet spot near $\tau=0.95$, and the gain grows by $30$--$60\%$ from LR $5\times10^{-6}$ to $10^{-5}$ (Table~\ref{tab:ablation}); $\tau=0.999$ discards the shell and $\tau=0.90$ admits saturated noise. The learning rate has a hard floor and ceiling: below $10^{-6}$ no update occurs (all deltas $0.0$), while above $5\times10^{-5}$ the boundary is relocated rather than refined. We fix $\tau=0.99$ \textit{a priori}; the ablation shows a tuned $\tau=0.95$ would yield a larger gain ($+1.61$ on LA 5\%), which we do not claim, to avoid test-set tuning. Two design choices are confirmed on Pancreas-CT: (a) on a converged checkpoint the student and its EMA teacher agree almost everywhere, so a disagreement mask~\cite{yu2019uamt} is nearly empty and yields no update --- the confidence shell is the correct post-hoc mask; and (b) updating only the decoder or the EMA weights gives $\le0$ gain, so PEM updates all student parameters (unlike normalization-only TTA~\cite{wang2021tent}). Dice is monotonic in $E$ up to a peak at $E=8$; we report the more conservative \textit{a priori} $E=5$.
 
@@ -252,15 +262,8 @@ Confident $\tau{=}0.999$ & $+0.96$ & $+1.02$ & $+0.22$ & $+0.37$ \\
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Convergence is immediate (Fig.~\ref{fig:curves}).}
-Most of the gain arrives in the first epoch: HD95 drops sharply at epoch~$1$ (e.g.\ $13.9\!\to\!8.4$ voxels on LA 5\%) while Dice rises monotonically and plateaus within the budget, confirming that $E\!\in\!\{2,5\}$ suffices and the gain is a stable refinement, not a lucky early stop.
-
-\begin{figure}[tb]
-\centering
-\includegraphics[width=\linewidth]{pem_curves.pdf}
-\caption{PEM fine-tuning trajectories (representative run, seed $2020$). Overlap (Dice) and boundary quality (HD95) improve within the first one to two epochs and plateau inside the fixed budget on all three checkpoints; epoch~$0$ is the released BCP checkpoint.}
-\label{fig:curves}
-\end{figure}
+\noindent\textbf{Convergence is immediate.}
+Most of the gain arrives in the first epoch --- HD95 drops sharply at epoch~$1$ (e.g.\ $13.9\!\to\!8.4$ voxels on LA 5\%) while Dice rises monotonically and plateaus within the budget --- confirming that $E\!\in\!\{2,5\}$ suffices and the gain is a stable refinement, not a lucky early stop.
 
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
