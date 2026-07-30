@@ -53,7 +53,7 @@ wolf@cs.tau.ac.il}
 \maketitle
 
 \begin{abstract}
-Semi-supervised learning methods for medical image segmentation, or SSL methods, stop using the unlabeled data once training converges, even though the model's predictions on it still carry residual uncertainty concentrated at organ boundaries. This paper shows that this residual entropy is spatially structured and exploits it with \textit{Post-hoc Entropy Minimization}, or PEM: any converged SSL checkpoint is fine-tuned for two to five epochs with a single entropy-minimization loss on unlabeled data, using no labels, no pseudo-labels, and no architectural changes. A label-free diagnostic $\rho_f$ predicts in advance when PEM will help, and a gradient analysis explains why the loss localizes to the boundary with no explicit mask, and why masking nonetheless helps, through the loss normalization rather than the gating. Applied to the publicly released Bidirectional Copy-Paste, or BCP, checkpoints with no test-set tuning, PEM reduces the 95th-percentile Hausdorff Distance by $27$--$43\%$, consistent with a boundary-refinement mechanism, and improves the Dice score by $+1.12$, $+1.27$, and $+0.62$ points on Pancreas-CT at 20\% labeled, Left Atrium at 5\% labeled, and Left Atrium at 10\% labeled, in under five minutes per run on a single GPU. Against temperature scaling, pseudo-label fine-tuning, and self-consistency under an identical protocol, PEM obtains the largest mean gain on the two less-saturated configurations, every gain significant at $p<0.025$.
+Semi-supervised learning methods for medical image segmentation, or SSL methods, stop using the unlabeled data once training converges, even though the model's predictions on it still carry residual uncertainty concentrated at organ boundaries. This paper shows that this residual entropy is spatially structured and exploits it with \textit{Post-hoc Entropy Minimization}, or PEM: any converged SSL checkpoint is fine-tuned for two to five epochs with a single entropy-minimization loss on unlabeled data, using no labels, no pseudo-labels, and no architectural changes. A label-free diagnostic $\rho_f$ predicts in advance when PEM will help, and a gradient analysis explains why the loss localizes to the boundary with no explicit mask, and why masking nonetheless helps, through the loss normalization rather than the gating. Applied to the publicly released Bidirectional Copy-Paste, or BCP, checkpoints with no test-set tuning, PEM reduces the 95th-percentile Hausdorff Distance by $27$--$43\%$, consistent with a boundary-refinement mechanism, and improves the Dice score by $+1.12$, $+1.27$, and $+0.62$ points on Pancreas-CT at 20\% labeled, Left Atrium at 5\% labeled, and Left Atrium at 10\% labeled, in minutes per run on a single GPU. Against temperature scaling, pseudo-label fine-tuning, and self-consistency under an identical protocol, PEM obtains the largest mean gain on the two less-saturated configurations, every gain significant at $p<0.025$.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -75,7 +75,7 @@ The first contribution is the \textit{shell entropy concentration} $\rho_f$, a s
 The second contribution is PEM together with an account of why the classical loss needs no stabilizers in this regime. The entropy-minimization gradient is supported on a band of moderate confidence flanking the boundary and vanishes both on the saturated interior and at the point of maximum ambiguity, so it gates itself to the boundary shell with no explicit mask; the confidence mask instead acts through the loss normalization. Because partial-volume averaging and weak soft-tissue contrast make the anatomical-boundary voxels the ambiguous ones, the feature-space decision surface co-locates with the physical organ surface, and entropy minimization there realizes the cluster assumption as boundary refinement. The same argument predicts the two regimes in which PEM should fail, and the entropy maps in Fig.~\ref{fig:qual} show the boundary shell it acts on.
 
 \noindent\textbf{Validation across organs and modalities.}
-The third contribution is an empirical study spanning two organs and two imaging modalities. On the released BCP checkpoints for Pancreas-CT and Left Atrium, with no test-set tuning and a budget fixed in advance, PEM improves both overlap and boundary metrics and outperforms three controlled post-hoc baselines, namely temperature scaling, pseudo-label fine-tuning, and self-consistency, under an identical protocol, as summarized in Table~\ref{tab:main}. Every gain is significant under a per-case Wilcoxon signed-rank test, the ablation over the mask and learning rate in Table~\ref{tab:ablation} isolates the confidence-shell design, and PEM degrades a checkpoint only when its $\rho_f$ falls below the suitability threshold, exactly as the diagnostic predicts.
+The third contribution is an empirical study spanning two organs and two imaging modalities. On the released BCP checkpoints for Pancreas-CT and Left Atrium, with no test-set tuning and a budget fixed in advance, PEM improves both overlap and boundary metrics and, against three controlled post-hoc baselines, namely temperature scaling, pseudo-label fine-tuning, and self-consistency, gives the largest gain on the two less-saturated configurations, as summarized in Table~\ref{tab:main}. Every gain is significant under a per-case Wilcoxon signed-rank test, the ablation over the mask and learning rate in Table~\ref{tab:ablation} isolates the confidence-shell design, and PEM degrades a checkpoint only when its $\rho_f$ falls below the suitability threshold, exactly as the diagnostic predicts.
 
 \section{Related Work}
 \label{sec:related}
@@ -108,7 +108,7 @@ PEM fine-tunes the checkpoint on the unlabeled set with the entropy loss
 \qquad m_i=\mathbb{1}[c_i\le\tau],
 \label{eq:pem}
 \end{equation}
-optionally restricted to the confidence shell through the mask $m_i$. No labels or pseudo-labels are used. Fine-tuning runs for a small, fixed number of epochs $E$ with a small learning rate.
+optionally restricted to the confidence shell through the mask $m_i$, with $\epsilon$ a small constant guarding the empty-mask case. No labels or pseudo-labels are used. Fine-tuning runs for a small, fixed number of epochs $E$ with a small learning rate.
 
 \section{Analysis: Why PEM Works}
 \label{sec:analysis}
@@ -133,10 +133,10 @@ For the unmasked entropy loss, the magnitude of each voxel's gradient is proport
 \section{Datasets and Implementation}
 \label{sec:data}
 \noindent\textbf{Datasets.}
-Evaluation uses two public benchmarks. Pancreas-CT~\cite{roth2015pancreas} contains abdominal Computed Tomography (CT) scans; following the standard split, 12 labeled, 50 unlabeled, and 18 test cases are used (20\% labeled). The Left Atrium (LA) 2018 dataset contains cardiac Magnetic Resonance Imaging (MRI) scans; the standard 5\% (4 labeled) and 10\% (8 labeled) splits with 20 test cases are used. Both use the preprocessing distributed with BCP~\cite{bai2023bcp}.
+Evaluation uses two public benchmarks. Pancreas-CT~\cite{roth2015pancreas} contains abdominal Computed Tomography (CT) scans, split into 12 labeled, 50 unlabeled, and 18 test cases (20\% labeled). The Left Atrium (LA) 2018 dataset contains cardiac Magnetic Resonance Imaging (MRI) scans, split at 5\% (4 labeled) and 10\% (8 labeled) with 20 test cases. Both use the preprocessing distributed with BCP~\cite{bai2023bcp}.
 
 \noindent\textbf{Checkpoints and protocol.}
-The experiments start from the publicly released BCP checkpoints (V-Net backbone; instance normalization for Pancreas, batch normalization for LA). PEM uses Adam (no weight decay or schedule), gradient clipping at $1$, and learning rates $5\times10^{-5}$ (Pancreas) and $1\times10^{-5}$ (LA) chosen by 5-fold cross-validation on labeled folds; LA batch-normalization statistics are frozen. The main results use the confident-shell loss with $\tau=0.99$ throughout. The budget is fixed \textit{a priori} at $E=2$ (Pancreas) and $E=5$ (LA), and PEM numbers are the mean over seeds $\{2020,42,123\}$. Inference uses sliding windows with BCP's strides and no test-time augmentation (TTA); each run finishes in under $5.2$ minutes on one RTX 4070 Ti SUPER.
+The experiments start from the publicly released BCP checkpoints (V-Net backbone; instance normalization for Pancreas, batch normalization for LA). PEM uses Adam (no weight decay or schedule), gradient clipping at $1$, and learning rates $5\times10^{-5}$ (Pancreas) and $1\times10^{-5}$ (LA) chosen by 5-fold cross-validation on labeled folds; LA batch-normalization statistics are frozen. The relocation ceiling reported below was characterized on the batch-normalized LA setting; Pancreas, under instance normalization, is stable at its higher $5\times10^{-5}$ rate, its three-seed Dice varying by $\pm0.00$. The main results use the confident-shell loss with $\tau=0.99$ throughout. The budget is fixed \textit{a priori} at $E=2$ (Pancreas) and $E=5$ (LA), and PEM numbers are the mean over seeds $\{2020,42,123\}$. Inference uses sliding windows with BCP's strides and no test-time augmentation (TTA); each run finishes in under $5.2$ minutes on one RTX 4070 Ti SUPER.
 
 \noindent\textbf{Metrics and post-hoc baselines.}
 The metrics are Dice and Jaccard (higher is better) and the 95th-percentile Hausdorff Distance (HD95) and Average Surface Distance (ASD) in voxels (lower is better). Three post-hoc baselines receive the same checkpoint, budget, learning rate, and data:
@@ -213,9 +213,10 @@ The entropy column makes the diagnostic concrete: the BCP residual entropy forms
 
 \begin{table}[tb]
 \centering
-\caption{Post-hoc methods on the released BCP checkpoints under an identical fixed-budget protocol. TS omitted (Dice change $|\Delta|{\le}0.03$ everywhere). Boldface marks the best Dice per setting. PEM wins the two less-saturated configurations and overlaps PL-FT (confidence interval) on the saturated LA 10\%.}
+\caption{Post-hoc methods on the released BCP checkpoints under an identical fixed-budget protocol. TS omitted (Dice change $|\Delta|{\le}0.03$ everywhere). Boldface marks the best Dice per setting. PEM gives the largest gain on the two less-saturated settings; PL-FT leads on the saturated LA 10\%, with overlapping Dice intervals.}
 \label{tab:main}
 \footnotesize
+\renewcommand{\arraystretch}{0.92}
 \setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{lcccc}
 \toprule
@@ -250,6 +251,7 @@ Restricting the loss to the confidence shell helps through normalization, not ga
 \caption{Ablation on the confidence-shell mask and learning rate (peak $\Delta$Dice over the fine-tuning budget, LA). The confident-shell mask beats the unmasked loss at both learning rates, peaking near $\tau{=}0.95$, and the gain grows with the learning rate. At learning rate ${\le}10^{-6}$ (not shown) no update occurs on either setting.}
 \label{tab:ablation}
 \footnotesize
+\renewcommand{\arraystretch}{0.92}
 \setlength{\tabcolsep}{4.5pt}
 \begin{tabular}{lcccc}
 \toprule
@@ -271,13 +273,13 @@ Most of the gain arrives in the first epoch: HD95 drops sharply at epoch~$1$ (e.
 
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
-This work shows that converged SSL checkpoints leave a structured, boundary-localized residual entropy, quantifies it with the label-free diagnostic $\rho_f$, and exploits it with Post-hoc Entropy Minimization. Whenever $\rho_f(0.99)$ clears the threshold, as for all three BCP checkpoints ($0.894$--$0.948$) but not the supervised baseline ($0.552$), a few minutes of label-free fine-tuning reduces HD95 by $27$--$43\%$ and improves Dice by $+0.6$ to $+1.3$ points.
+This work shows that converged SSL checkpoints leave a structured, boundary-localized residual entropy, quantifies it with the label-free diagnostic $\rho_f$, and exploits it with Post-hoc Entropy Minimization. Whenever $\rho_f(0.99)$ clears the threshold, as for all three BCP checkpoints but not the supervised baseline, a few minutes of label-free fine-tuning reduces HD95 by $27$--$43\%$ and improves Dice by $+0.6$ to $+1.3$ points.
 
-PEM has two predictable failure modes, both diagnosable from a single label-free forward pass: diffuse residual entropy ($\rho_f\lesssim0.6$, the supervised checkpoint, where PEM reduces Dice by $6.25$ points) and vanishing residual entropy ($\rho_f\to1$, the saturated LA 10\% setting, where pseudo-label fine-tuning becomes competitive).
+PEM has two predictable failure modes, both diagnosable from one forward pass: diffuse entropy ($\rho_f\lesssim0.6$, the supervised checkpoint, where PEM loses $6.25$ Dice) and vanishing entropy ($\rho_f\to1$, LA 10\%, where PL-FT becomes competitive).
 
-\noindent\textbf{Practical guidance.} PEM is a decision rule, not a universal step. Given a released checkpoint, $\rho_f(0.99)$ is computed from one label-free forward pass; if it exceeds $\rho^\star$ and the base Dice leaves headroom, the checkpoint is fine-tuned with the confident-shell loss at a learning rate in $[5\times10^{-6},10^{-5}]$ for a few epochs, the gain tracking the residual entropy budget: largest when $\rho_f$ is high yet accuracy imperfect (Pancreas 20\%, LA 5\%), smallest once saturated (LA 10\%).
+\noindent\textbf{Practical guidance.} PEM is a decision rule, not a universal step: given a released checkpoint, $\rho_f(0.99)$ is computed from one label-free forward pass, and if it exceeds $\rho^\star$ with the base Dice leaving headroom, the checkpoint is fine-tuned with the confident-shell loss at a learning rate in $[5\times10^{-6},10^{-5}]$, the gain tracking the residual entropy budget: largest when $\rho_f$ is high yet accuracy imperfect (Pancreas 20\%, LA 5\%), smallest once saturated (LA 10\%).
 
-The main limitation is that the diagnostic is validated on four checkpoints, so $\rho^\star$ and the $\rho_f$-to-gain relationship are coarse and the single supervised negative is confounded by training procedure. Densifying this is the key next experiment: a sweep of BCP checkpoints across training lengths, plus public SSL methods (UA-MT~\cite{yu2019uamt}, DTC~\cite{luo2022dtc}, MC-Net+~\cite{wu2022mcnet}, CPS~\cite{chen2021cps}) across label fractions, yields a family over which $\Delta$Dice regresses on $\rho_f$; multi-seed BCP retraining is the other open item.
+The main limitation is that the diagnostic rests on four checkpoints, so $\rho^\star$ and the $\rho_f$-to-gain relationship are coarse and the single supervised negative is confounded. The next experiment densifies this: a BCP checkpoint sweep over training lengths and independent seeds, plus public SSL methods (UA-MT~\cite{yu2019uamt}, DTC~\cite{luo2022dtc}, MC-Net+~\cite{wu2022mcnet}, CPS~\cite{chen2021cps}) across label fractions, gives a family over which $\Delta$Dice regresses on $\rho_f$.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
