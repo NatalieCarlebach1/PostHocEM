@@ -29,6 +29,7 @@ Usage
 import argparse
 import csv
 import subprocess
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -113,7 +114,7 @@ def run_one(dataset, cfg, fraction, lr, mode, threshold, dry_run=False):
         return name, None, f'missing checkpoint: {checkpoint}'
 
     cmd = [
-        'python', 'train_posthoc_em.py',
+        sys.executable, 'train_posthoc_em.py',
         '--dataset', dataset,
         '--checkpoint', str(checkpoint),
         '--data_root', cfg['data_root'],
