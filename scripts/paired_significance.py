@@ -35,9 +35,9 @@ CONFIGS = [
      'kind': 'pancreas',
      'bcp':  'result/bcp_baseline_v2/best_model.pth',
      'methods': {
-         'PEM':   'result/pem_seed_pancreas_2020/best_model.pth',
-         'PL-FT': 'result/baseline_pl_ft_pancreas20/best_model.pth',
-         'SC':    'result/baseline_sc_pancreas20/best_model.pth',
+         'PEM':   'result/paired_pem_pancreas20/last_model.pth',
+         'PL-FT': 'result/paired_pl_ft_pancreas20/last_model.pth',
+         'SC':    'result/paired_sc_pancreas20/last_model.pth',
      },
      'data_root': 'data/pancreas_h5',
      'test_split': 'splits/pancreas/test.txt',
@@ -46,9 +46,9 @@ CONFIGS = [
      'kind': 'la',
      'bcp':  'result/bcp_pretrained/LA_5.pth',
      'methods': {
-         'PEM':   'result/pem_seed_la5_2020/best_model.pth',
-         'PL-FT': 'result/baseline_pl_ft_la5/best_model.pth',
-         'SC':    'result/baseline_sc_la5/best_model.pth',
+         'PEM':   'result/paired_pem_la5/last_model.pth',
+         'PL-FT': 'result/paired_pl_ft_la5/last_model.pth',
+         'SC':    'result/paired_sc_la5/last_model.pth',
      },
      'data_root': 'data/la_h5/2018LA_Seg_Training Set',
      'test_split': 'splits/la/test.txt',
@@ -57,9 +57,9 @@ CONFIGS = [
      'kind': 'la',
      'bcp':  'result/bcp_pretrained/LA_10.pth',
      'methods': {
-         'PEM':   'result/pem_seed_la10_2020/best_model.pth',
-         'PL-FT': 'result/baseline_pl_ft_la10/best_model.pth',
-         'SC':    'result/baseline_sc_la10/best_model.pth',
+         'PEM':   'result/paired_pem_la10/last_model.pth',
+         'PL-FT': 'result/paired_pl_ft_la10/last_model.pth',
+         'SC':    'result/paired_sc_la10/last_model.pth',
      },
      'data_root': 'data/la_h5/2018LA_Seg_Training Set',
      'test_split': 'splits/la/test.txt',
@@ -147,6 +147,7 @@ def main():
         del net_bcp
         torch.cuda.empty_cache()
 
+        per_case = {}
         for mname, mckpt in cfg['methods'].items():
             net = loader(mckpt)
             d = per_case_dice(net, cases, cfg['kind'], cfg['data_root'],
@@ -169,6 +170,29 @@ def main():
             print(f'{cfg["name"]:<16s} {mname:<8s} {n:>3d} {mean_delta:>+8.2f}%  '
                   f'[{lo*100:+5.2f}, {hi*100:+5.2f}]  '
                   f'{p:>10.2e}  {d_z:>+6.2f}  {wins:>3d}/{ties}/{losses}')
+            per_case[mname] = d
+
+        # ── Head-to-head: PEM vs each competing post-hoc method ────────────
+        for other in ('PL-FT', 'SC'):
+            if 'PEM' not in per_case or other not in per_case:
+                continue
+            deltas = per_case['PEM'] - per_case[other]
+            wins = int((deltas > 1e-4).sum())
+            ties = int((np.abs(deltas) <= 1e-4).sum())
+            losses = int((deltas < -1e-4).sum())
+            try:
+                _, p = wilcoxon(per_case['PEM'], per_case[other],
+                                zero_method='wilcox', alternative='two-sided')
+            except ValueError:
+                p = float('nan')
+            lo, hi = bootstrap_ci(deltas)
+            label = f'PEM-{other}'
+            print(f'{"":<16s} {label:<8s} {len(deltas):>3d} '
+                  f'{deltas.mean()*100:>+8.2f}%  '
+                  f'[{lo*100:+5.2f}, {hi*100:+5.2f}]  '
+                  f'{p:>10.2e}  {cohens_dz(deltas):>+6.2f}  '
+                  f'{wins:>3d}/{ties}/{losses}')
+        print('-' * 92)
 
 
 if __name__ == '__main__':

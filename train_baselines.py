@@ -150,6 +150,9 @@ def get_args():
                         "literal 'labeled' resolves to "
                         "splits_dir/train_lab_{label_percent}.txt.")
 
+    p.add_argument("--save_last", action="store_true",
+                   help="Also save the final-epoch weights as last_model.pth.")
+
     p.add_argument("--seed", type=int, default=2020)
     p.add_argument("--gpu",  type=str, default="0")
     args = p.parse_args()
@@ -515,6 +518,12 @@ def main():
                 row += (f',{val_dice:.6f},{val_jc:.6f},{val_hd:.4f},'
                         f'{val_asd:.4f},{val_delta:.6f}')
             f.write(row + '\n')
+
+    if args.save_last:
+        save_net = (TemperatureWrapper(student, T.detach()).cuda()
+                    if args.method == 'ts' else student)
+        torch.save(save_net.state_dict(), str(save_dir / "last_model.pth"))
+        log.info("Saved final-epoch weights → last_model.pth")
 
     log.info("=" * 60)
     log.info(f"Method        : {args.method}")

@@ -189,6 +189,10 @@ def get_args():
                         "splits_dir/train_lab_{label_percent}.txt. When set, "
                         "checkpoint selection and early stopping use this set "
                         "and never the test split.")
+    p.add_argument("--save_last", action="store_true",
+                   help="Also save the final-epoch weights as last_model.pth. "
+                        "Under --fixed_budget these are the reported model, "
+                        "which need not be the val-selected best_model.pth.")
     p.add_argument("--fixed_budget", action="store_true",
                    help="Run exactly --epochs epochs: disables early stopping "
                         "and the collapse break, so every configuration is "
@@ -637,6 +641,10 @@ def main():
         if no_improve >= args.patience:
             log.info(f"  No improvement for {args.patience} epochs — early stopping")
             break
+
+    if args.save_last:
+        torch.save(net.state_dict(), str(save_dir / "last_model.pth"))
+        log.info(f"Saved final-epoch weights → last_model.pth")
 
     # ── Final summary ────────────────────────────────────────────────────────
     log.info("=" * 60)
