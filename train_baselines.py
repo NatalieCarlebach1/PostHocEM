@@ -143,6 +143,13 @@ def get_args():
     p.add_argument("--noise_std",  type=float, default=0.05,
                    help="Gaussian input noise std for self-consistency baseline")
 
+    # Labeled-validation selection, identical to train_posthoc_em.py, so that
+    # every post-hoc method is selected by the same rule with no test access.
+    p.add_argument("--val_split", default=None,
+                   help="Split file used for hyperparameter selection. The "
+                        "literal 'labeled' resolves to "
+                        "splits_dir/train_lab_{label_percent}.txt.")
+
     p.add_argument("--seed", type=int, default=2020)
     p.add_argument("--gpu",  type=str, default="0")
     args = p.parse_args()
@@ -309,8 +316,11 @@ def main():
 
     # CSV
     csv_path = save_dir / 'metrics.csv'
+    csv_header = 'epoch,method,loss,dice,jaccard,hd95,asd,best_dice,delta'
+    if args.val_split is not None:
+        csv_header += ',val_dice,val_jaccard,val_hd95,val_asd,val_delta'
     with open(csv_path, 'w') as f:
-        f.write('epoch,method,loss,dice,jaccard,hd95,asd,best_dice,delta\n')
+        f.write(csv_header + '\n')
 
     # ── Data ────────────────────────────────────────────────────────────────
     splits_dir = Path(args.splits_dir)
@@ -334,7 +344,21 @@ def main():
         test_ds = FullVolumeDataset(
             args.data_root, str(splits_dir / 'test.txt'))
 
-    log.info(f"Unlabeled: {len(unlab_ds)} cases | Test: {len(test_ds)} cases")
+    val_ds = None
+    if args.val_split is not None:
+        if args.val_split == 'labeled':
+            val_file = splits_dir / f'train_lab_{args.label_percent}.txt'
+        else:
+            val_file = Path(args.val_split)
+        val_ds = (_LAFullVolume(args.la_data_root, str(val_file))
+                  if args.dataset == 'la'
+                  else FullVolumeDataset(args.data_root, str(val_file)))
+        overlap = set(getattr(unlab_ds, 'cases', [])) & set(val_ds.cases)
+        assert not overlap, f"Validation split leaks into training set: {sorted(overlap)}"
+
+    log.info(f"Unlabeled: {len(unlab_ds)} cases | Test: {len(test_ds)} cases"
+             + (f" | Val (labeled, selection only): {len(val_ds)} cases"
+                if val_ds is not None else ""))
 
     # ── Models ──────────────────────────────────────────────────────────────
     student = load_model(args.checkpoint, args.num_classes, dataset=args.dataset)
@@ -397,10 +421,21 @@ def main():
             n_classes=args.num_classes)
         log.info(f"[Baseline] Dice={base_dice:.4f}")
 
+    base_val_dice = None
+    if val_ds is not None:
+        base_val_dice, base_val_jc, base_val_hd, base_val_asd = evaluate(
+            student, val_ds, args.patch_size,
+            stride_xy=args.stride_xy, stride_z=4, n_classes=args.num_classes)
+        log.info(f"[Baseline/val] Dice={base_val_dice:.4f}")
+
     with open(csv_path, 'a') as f:
-        f.write(f'0,baseline,0.000000,'
-                f'{base_dice:.6f},{base_jc:.6f},{base_hd:.4f},{base_asd:.4f},'
-                f'{base_dice:.6f},0.0000\n')
+        row = (f'0,baseline,0.000000,'
+               f'{base_dice:.6f},{base_jc:.6f},{base_hd:.4f},{base_asd:.4f},'
+               f'{base_dice:.6f},0.0000')
+        if val_ds is not None:
+            row += (f',{base_val_dice:.6f},{base_val_jc:.6f},'
+                    f'{base_val_hd:.4f},{base_val_asd:.4f},0.0000')
+        f.write(row + '\n')
 
     # ── Fine-tuning loop ────────────────────────────────────────────────────
     best_dice = base_dice
@@ -458,6 +493,14 @@ def main():
         delta = dice - base_dice
         log.info(f"[Epoch {epoch}] Dice={dice:.4f}  HD95={hd:.2f}  delta={delta:+.4f}")
 
+        if val_ds is not None:
+            val_net = eval_net if args.method == 'ts' else student
+            val_dice, val_jc, val_hd, val_asd = evaluate(
+                val_net, val_ds, args.patch_size,
+                stride_xy=args.stride_xy, stride_z=4, n_classes=args.num_classes)
+            val_delta = val_dice - base_val_dice
+            log.info(f"[Epoch {epoch}/val] Dice={val_dice:.4f}  delta={val_delta:+.4f}")
+
         if dice > best_dice:
             best_dice = dice
             torch.save(student.state_dict(), str(save_dir / "best_model.pth"))
@@ -465,9 +508,13 @@ def main():
                 torch.save({'T': T.item()}, str(save_dir / "T.pt"))
 
         with open(csv_path, 'a') as f:
-            f.write(f'{epoch},{args.method},{avg_loss:.6f},'
-                    f'{dice:.6f},{jc:.6f},{hd:.4f},{asd:.4f},'
-                    f'{best_dice:.6f},{delta:.6f}\n')
+            row = (f'{epoch},{args.method},{avg_loss:.6f},'
+                   f'{dice:.6f},{jc:.6f},{hd:.4f},{asd:.4f},'
+                   f'{best_dice:.6f},{delta:.6f}')
+            if val_ds is not None:
+                row += (f',{val_dice:.6f},{val_jc:.6f},{val_hd:.4f},'
+                        f'{val_asd:.4f},{val_delta:.6f}')
+            f.write(row + '\n')
 
     log.info("=" * 60)
     log.info(f"Method        : {args.method}")
