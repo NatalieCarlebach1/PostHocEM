@@ -99,13 +99,13 @@ Let $f_{\theta^*}$ be a converged checkpoint and $\mathbf{x}\in\mathcal{U}$ an u
 \rho_f(\tau) \;=\; \frac{\mathbb{E}_{\mathbf{x}\sim\mathcal{U}}\!\left[\sum_{i} H_i\,\mathbb{1}[c_i\le\tau]\right]}{\mathbb{E}_{\mathbf{x}\sim\mathcal{U}}\!\left[\sum_{i} H_i\right]} \in [0,1].
 \label{eq:rho}
 \end{equation}
-$\rho_f(\tau)$ is the fraction of total prediction entropy carried by voxels of confidence at most $\tau$. It is label-free, scalar, and self-localizing: on a converged network the low-confidence voxels lie near the decision boundary. Throughout, $\tau=0.99$, and $\rho^\star=0.85$ is a provisional suitability threshold, placed below the SSL checkpoints and well above the supervised baseline of Table~\ref{tab:entropy} and left to be pinned down by the denser checkpoint sweep discussed in Sec.~\ref{sec:conclusion}.
+$\rho_f(\tau)$ is the fraction of total prediction entropy carried by voxels of confidence at most $\tau$. It is label-free, scalar, and self-localizing: on a converged network the low-confidence voxels lie near the decision boundary. The diagnostic is always evaluated at $\tau=0.99$, and $\rho^\star=0.85$ is a provisional suitability threshold, placed below the SSL checkpoints and well above the supervised baseline of Table~\ref{tab:entropy} and left to be pinned down by the denser checkpoint sweep discussed in Sec.~\ref{sec:conclusion}. The loss of Sec.~\ref{sec:method}-B uses a separate threshold $\tau_m$, written distinctly because the two serve different purposes and take different values: $\tau$ measures where the entropy sits, $\tau_m$ decides which voxels the loss averages over.
 
 \subsection{Post-hoc Entropy Minimization}
 PEM fine-tunes the checkpoint on the unlabeled set with the entropy loss
 \begin{equation}
 \mathcal{L}_{\text{PEM}} \;=\; \frac{1}{|\mathcal{U}|}\sum_{\mathbf{x}\in\mathcal{U}}\frac{\sum_{i} m_i H_i}{\sum_i m_i+\epsilon},
-\qquad m_i=\mathbb{1}[c_i\le\tau],
+\qquad m_i=\mathbb{1}[c_i\le\tau_m],
 \label{eq:pem}
 \end{equation}
 optionally restricted to the confidence shell through the mask $m_i$, with $\epsilon$ a small constant guarding the empty-mask case. No labels or pseudo-labels are used. Fine-tuning runs for a small, fixed number of epochs $E$ with a small learning rate.
@@ -136,7 +136,10 @@ For the unmasked entropy loss, the magnitude of each voxel's gradient is proport
 Evaluation uses two public benchmarks. Pancreas-CT~\cite{roth2015pancreas} contains abdominal Computed Tomography (CT) scans, split into 12 labeled, 50 unlabeled, and 18 test cases (20\% labeled). The Left Atrium (LA) 2018 dataset contains cardiac Magnetic Resonance Imaging (MRI) scans, split at 5\% (4 labeled) and 10\% (8 labeled) with 20 test cases. Both use the preprocessing distributed with BCP~\cite{bai2023bcp}.
 
 \noindent\textbf{Checkpoints and protocol.}
-The experiments start from the publicly released BCP checkpoints (V-Net backbone; instance normalization for Pancreas, batch normalization for LA). PEM uses Adam (no weight decay or schedule), gradient clipping at $1$, and learning rates $5\times10^{-5}$ (Pancreas) and $1\times10^{-5}$ (LA) chosen by 5-fold cross-validation on labeled folds; LA batch-normalization statistics are frozen. The relocation ceiling reported below was characterized on the batch-normalized LA setting; Pancreas, under instance normalization, is stable at its higher $5\times10^{-5}$ rate, its three-seed Dice varying by $\pm0.00$. The main results use the confident-shell loss with $\tau=0.99$ throughout. The budget is fixed \textit{a priori} at $E=2$ (Pancreas) and $E=5$ (LA), and PEM numbers are the mean over seeds $\{2020,42,123\}$. Inference uses sliding windows with BCP's strides and no test-time augmentation (TTA); each run finishes in under $5.2$ minutes on one RTX 4070 Ti SUPER.
+The experiments start from the publicly released BCP checkpoints (V-Net backbone; instance normalization for Pancreas, batch normalization for LA). PEM uses Adam (no weight decay or schedule) and gradient clipping at $1$; LA batch-normalization statistics are frozen. The budget is fixed \textit{a priori} at $E=2$ (Pancreas) and $E=5$ (LA); the epoch is not selected, the final one is reported. All numbers are the mean over seeds $\{2020,42,123\}$. Inference uses sliding windows with BCP's strides and no test-time augmentation (TTA); each run finishes in under $5.2$ minutes on one RTX 4070 Ti SUPER.
+
+\noindent\textbf{Selection protocol.}
+PEM optimizes an entropy objective on the unlabeled split alone, so the labeled training volumes, $12$ for Pancreas and $4$ and $8$ for LA, are never seen by any post-hoc objective and serve as a held-out set for choosing the learning rate and the mask threshold. This is not cross-validation: no fold is ever trained on, because no post-hoc method trains on labels at all. Selection maximizes the Dice \emph{change} these volumes report, never their absolute Dice, which is optimistic because the base SSL checkpoint was fitted on them. Across the $33$ configurations of Table~\ref{tab:ablation} that change ranks configurations as the test change does, with Spearman $\rho$ of $0.76$ (Pancreas), $0.76$ (LA 5\%) and $0.99$ (LA 10\%), and $0.67$ to $0.96$ when the configurations that collapse outright are removed, so the ranking is not merely separating collapse from non-collapse. The rule selects the confident-shell loss at $\tau_m=0.90$ in all three settings, with learning rate $5\times10^{-5}$ (Pancreas) and $5\times10^{-6}$ (LA). Every post-hoc baseline is put through the identical rule over the identical learning-rate grid, so no method sees the test split before it is reported.
 
 \noindent\textbf{Metrics and post-hoc baselines.}
 The metrics are Dice and Jaccard (higher is better) and the 95th-percentile Hausdorff Distance (HD95) and Average Surface Distance (ASD) in voxels (lower is better). Three post-hoc baselines receive the same checkpoint, budget, learning rate, and data:
@@ -244,32 +247,32 @@ BCP (released ckpt)          & 89.40 & 80.92 &  9.88 & 2.86 \\
 \end{table}
 
 \noindent\textbf{Mask and threshold ablation (Table~\ref{tab:ablation}).}
-Restricting the loss to the confidence shell helps through normalization, not gating (Sec.~\ref{sec:analysis}): the masked loss beats the unmasked one at every learning rate, peaking near $\tau=0.95$, with the gain growing $30$--$60\%$ from LR $5\times10^{-6}$ to $10^{-5}$. Since $m_i=\mathbb{1}[c_i\le\tau]$, a tight $\tau=0.90$ isolates the boundary band while a loose $\tau=0.999$ readmits the interior and approaches the unmasked loss. The learning rate has a hard floor and ceiling: below $10^{-6}$ no update occurs, above $5\times10^{-5}$ the boundary is relocated. The main results fix $\tau=0.99$ \textit{a priori}, with Table~\ref{tab:ablation} reporting the sensitivity to $\tau$. Two choices are confirmed on Pancreas-CT: a disagreement mask~\cite{yu2019uamt} is empty on a converged checkpoint and yields no update, so the confidence shell is the right post-hoc mask; and updating only the decoder or EMA weights gives $\le0$ gain, so PEM updates all student parameters, unlike normalization-only TTA~\cite{wang2021tent}. Dice is monotonic in $E$ to a peak at $E=8$; the conservative \textit{a priori} $E=5$ is reported.
+Read at the fixed budget, the ablation says something sharper than a ranking of thresholds: it says how much of the mask's value is insurance. Since $m_i=\mathbb{1}[c_i\le\tau_m]$, a tight $\tau_m=0.90$ isolates the boundary band while a loose $\tau_m=0.999$ readmits the interior and approaches the unmasked loss, and the count of degraded cells rises monotonically along exactly that path, from $0$ at $\tau_m=0.90$ to $3$ unmasked. The failures are not small: at $\tau_m=0.999$ the unmasked interior costs $30$ Dice points on LA 10\% at $10^{-5}$. This is the normalization argument of Sec.~\ref{sec:analysis} made visible, since the mask leaves the gating untouched and changes only what the loss averages over. The best \emph{mean} gain belongs to $\tau_m=0.95$, but its advantage does not survive the budget being fixed: $\tau_m=0.95$ beats $\tau_m=0.99$ in three of six cells and loses in three, with margins of $0.03$ to $0.06$ on Pancreas, so neither threshold is recommended and $\tau_m=0.90$ is, on the ground that it is the only one that never degrades a checkpoint. The learning rate has a hard floor and ceiling: below $10^{-6}$ no update occurs, and at $5\times10^{-5}$ the batch-normalized LA checkpoints are destroyed outright, losing $80$ and $85$ Dice points, while Pancreas under instance normalization is stable there. Two further choices are confirmed on Pancreas-CT: a disagreement mask~\cite{yu2019uamt} is empty on a converged checkpoint and yields no update, so the confidence shell is the right post-hoc mask; and updating only the decoder or EMA weights gives $\le0$ gain, so PEM updates all student parameters, unlike normalization-only TTA~\cite{wang2021tent}.
 
 \begin{table}[tb]
 \centering
-\caption{Ablation on the confidence-shell mask and learning rate (peak $\Delta$Dice over the fine-tuning budget, LA). The confident-shell mask beats the unmasked loss at both learning rates, peaking near $\tau{=}0.95$, and the gain grows with the learning rate. At learning rate ${\le}10^{-6}$ (not shown) no update occurs on either setting.}
+\caption{Ablation on the confidence-shell mask and learning rate, as $\Delta$Dice at the \emph{fixed a priori} budget ($E{=}5$ LA, $E{=}2$ Pancreas) rather than at a peak over the budget, so every cell is read at the same epoch and no early stop is chosen with hindsight. The last column counts the cells in which the checkpoint is degraded. Only $\tau_m{=}0.90$ never degrades one; fragility grows monotonically as the mask loosens toward the unmasked loss, which is what the normalization argument of Sec.~\ref{sec:analysis} predicts. The ordering of $\tau_m{=}0.95$ and $\tau_m{=}0.99$ is not stable across cells, so neither is recommended.}
 \label{tab:ablation}
-\footnotesize
+\scriptsize
 \renewcommand{\arraystretch}{0.92}
-\setlength{\tabcolsep}{4.5pt}
-\begin{tabular}{lcccc}
+\setlength{\tabcolsep}{2.2pt}
+\begin{tabular}{lccccccc}
 \toprule
-\multirow{2}{*}{\textbf{Mask}} & \multicolumn{2}{c}{\textbf{LA 5\%} $\Delta$Dice} & \multicolumn{2}{c}{\textbf{LA 10\%} $\Delta$Dice} \\
-\cmidrule(lr){2-3}\cmidrule(lr){4-5}
- & $5{\cdot}10^{\text{-}6}$ & $10^{\text{-}5}$ & $5{\cdot}10^{\text{-}6}$ & $10^{\text{-}5}$ \\
+\multirow{2}{*}{\textbf{Mask}} & \multicolumn{2}{c}{\textbf{LA 5\%}} & \multicolumn{2}{c}{\textbf{LA 10\%}} & \multicolumn{2}{c}{\textbf{Pancreas 20\%}} & \multirow{2}{*}{\textbf{Deg.}} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+ & $5{\cdot}10^{\text{-}6}$ & $10^{\text{-}5}$ & $5{\cdot}10^{\text{-}6}$ & $10^{\text{-}5}$ & $10^{\text{-}5}$ & $5{\cdot}10^{\text{-}5}$ & \\
 \midrule
-Full (no mask)          & $+0.89$ & $+0.99$ & $+0.13$ & $+0.39$ \\
-Confident $\tau{=}0.90$  & $+1.15$ & $+1.46$ & $\mathbf{+0.88}$ & $\mathbf{+0.85}$ \\
-Confident $\tau{=}0.95$  & $+1.34$ & $\mathbf{+1.61}$ & $+0.82$ & $+0.80$ \\
-Confident $\tau{=}0.99$  & $+1.20$ & $+1.28$ & $+0.47$ & $+0.55$ \\
-Confident $\tau{=}0.999$ & $+0.96$ & $+1.02$ & $+0.22$ & $+0.37$ \\
+Full (no mask)                &   $+0.66$ &   $-0.53$ &   $-0.86$ &   $-11.3$ &   $+0.53$ &   $+1.12$ & 3 \\
+Confident $\tau_m{=}0.90$     &   $+0.70$ &   $+1.20$ &   $+0.63$ &   $+0.36$ &   $+0.41$ &   $+1.04$ & \textbf{0} \\
+Confident $\tau_m{=}0.95$     &   $+0.87$ &   $+1.43$ &   $+0.55$ &   $-1.58$ &   $+0.44$ &   $+1.04$ & 1 \\
+Confident $\tau_m{=}0.99$     &   $+0.94$ &   $+0.40$ &   $-1.17$ &   $-16.8$ &   $+0.50$ &   $+1.07$ & 2 \\
+Confident $\tau_m{=}0.999$    &   $+0.74$ &   $-0.81$ &   $-2.57$ &   $-30.2$ &   $+0.53$ &   $+1.11$ & 3 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Convergence is immediate.}
-Most of the gain arrives in the first epoch: HD95 drops sharply at epoch~$1$ (e.g.\ $13.9\!\to\!8.4$ voxels on LA 5\%) while Dice rises monotonically and plateaus within the budget, confirming that $E\!\in\!\{2,5\}$ suffices and the gain is a stable refinement, not a lucky early stop.
+\noindent\textbf{The boundary moves first.}
+The two metrics respond on different timescales, and the order is the one the mechanism implies. On LA 5\% the HD95 falls from $13.91$ to $9.18$ voxels in a single epoch, two thirds of its total improvement, while Dice in that same epoch dips slightly below baseline, to $87.11$, before recovering and rising to $88.03$ by epoch~$5$. Sharpening the boundary shell therefore buys surface accuracy immediately and overlap only as the refinement accumulates, which is consistent with a step that moves boundary voxels rather than relabelling regions. Both curves are flat by the end of the budget, so $E\in\{2,5\}$ is not a lucky early stop; and since the reported epoch is the last rather than the best, no cherry-picking is possible.
 
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
