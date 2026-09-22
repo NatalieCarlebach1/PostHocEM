@@ -57,8 +57,40 @@ def pem_rows():
     return out
 
 
+# Learning rate the labeled-validation rule selected for each baseline.
+SELECTED_LR = {
+    ('pl_ft', 'la5'): '5e-6', ('pl_ft', 'la10'): '1e-5', ('pl_ft', 'pancreas20'): '1e-5',
+    ('sc',    'la5'): '5e-6', ('sc',    'la10'): '5e-6', ('sc',    'pancreas20'): '5e-5',
+}
+
+
+def baseline_seed_rows():
+    """3-seed means for each baseline at its validation-selected lr.
+
+    Seed 2020 lives in the selection grid (basesel_*); 42 and 123 were run
+    afterwards for seed parity with PEM (seedpar_*).
+    """
+    out = {}
+    for (method, stem), lr in SELECTED_LR.items():
+        paths = [ROOT / 'result' / f'basesel_{method}_{stem}_lr{lr}' / 'metrics.csv']
+        paths += [ROOT / 'result' / f'seedpar_{method}_{stem}_{s}' / 'metrics.csv'
+                  for s in (42, 123)]
+        rows = [last_row(p) for p in paths if p.exists()]
+        if len(rows) != 3:
+            continue
+        out[(method, stem)] = dict(
+            lr=lr,
+            dice=st.mean(float(r['dice']) * 100 for r in rows),
+            dice_sd=st.pstdev([float(r['dice']) * 100 for r in rows]),
+            jaccard=st.mean(float(r['jaccard']) * 100 for r in rows),
+            hd95=st.mean(float(r['hd95']) for r in rows),
+            asd=st.mean(float(r['asd']) for r in rows),
+        )
+    return out
+
+
 def baseline_rows():
-    """Baselines selected by the same labeled-validation rule."""
+    """Baselines selected by the same labeled-validation rule (seed 2020 grid)."""
     out = {}
     for method in ('pl_ft', 'sc'):
         for _, stem, *_ in SETTINGS:
@@ -88,6 +120,7 @@ def baseline_rows():
 def main():
     pem = pem_rows()
     base = baseline_rows()
+    bseed = baseline_seed_rows()
 
     print('=' * 74)
     print('  TABLE II — all post-hoc methods selected on labeled volumes only')
@@ -102,9 +135,16 @@ def main():
                 continue
             sel, cands = hit
             others = ', '.join(f'lr={c["lr"]}:{c["test_delta"]:+.2f}' for c in cands)
-            print(f'    {label:6s} Dice {sel["dice"]:.2f} ({sel["test_delta"]:+.2f})  '
-                  f'Jac {sel["jaccard"]:.2f}  HD95 {sel["hd95"]:.2f}  '
-                  f'ASD {sel["asd"]:.2f}   [selected lr={sel["lr"]}; grid {others}]')
+            m = bseed.get((method, stem))
+            if m:
+                print(f'    {label:6s} Dice {m["dice"]:.2f} ({m["dice"]-bd:+.2f}) '
+                      f'+-{m["dice_sd"]:.2f}  Jac {m["jaccard"]:.2f}  '
+                      f'HD95 {m["hd95"]:.2f}  ASD {m["asd"]:.2f}   '
+                      f'[3-seed, lr={m["lr"]}; seed-2020 grid {others}]')
+            else:
+                print(f'    {label:6s} Dice {sel["dice"]:.2f} ({sel["test_delta"]:+.2f})  '
+                      f'Jac {sel["jaccard"]:.2f}  HD95 {sel["hd95"]:.2f}  '
+                      f'ASD {sel["asd"]:.2f}   [1 seed; selected lr={sel["lr"]}]')
         if stem in pem:
             p = pem[stem]
             print(f'    {"PEM":6s} Dice {p["dice"]:.2f} ({p["dice"]-bd:+.2f}) '
@@ -121,8 +161,8 @@ def main():
         if stem in pem:
             row.append(('PEM', pem[stem]['dice']))
         for method, label in (('pl_ft', 'PL-FT'), ('sc', 'SC')):
-            if (method, stem) in base:
-                row.append((label, base[(method, stem)][0]['dice']))
+            if (method, stem) in bseed:
+                row.append((label, bseed[(method, stem)]['dice']))
         if row:
             row.sort(key=lambda t: -t[1])
             order = '  >  '.join(f'{n} {d:.2f}' for n, d in row)
@@ -136,10 +176,10 @@ def main():
         print(f'\\multicolumn{{5}}{{l}}{{\\textit{{{name}}}}} \\\\')
         print(f'BCP (released ckpt)          & {bd:.2f} & {bj:.2f} & {bh:5.2f} & {ba:.2f} \\\\')
         for method, label in (('pl_ft', 'PL-FT'), ('sc', 'SC')):
-            if (method, stem) in base:
-                s = base[(method, stem)][0]
-                print(f'\\quad$+$ {label:6s}              & {s["dice"]:.2f} & '
-                      f'{s["jaccard"]:.2f} & {s["hd95"]:5.2f} & {s["asd"]:.2f} \\\\')
+            if (method, stem) in bseed:
+                b = bseed[(method, stem)]
+                print(f'\\quad$+$ {label:6s}              & {b["dice"]:.2f} & '
+                      f'{b["jaccard"]:.2f} & {b["hd95"]:5.2f} & {b["asd"]:.2f} \\\\')
         if stem in pem:
             p = pem[stem]
             print(f'\\quad$+$ \\textbf{{PEM}}         & {p["dice"]:.2f} & '
