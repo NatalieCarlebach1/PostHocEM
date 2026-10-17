@@ -76,7 +76,7 @@ The corrected table supports a better recommendation, on a stronger criterion th
 
 | Mask | degraded cells |
 |------|----------------|
-| Full (no mask) | 3 of 5 |
+| Full (no mask) | 3 of 6 |
 | **τ_m = 0.90** | **0 of 6** |
 | τ_m = 0.95 | 1 of 6 |
 | τ_m = 0.99 | 2 of 6 |
