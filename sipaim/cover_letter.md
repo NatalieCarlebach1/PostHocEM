@@ -43,7 +43,7 @@ LA 5%):
    Dice.
 2. We verified that this change is informative rather than assumed it. Across the 33
    configurations of the ablation grid, validation ΔDice ranks configurations as test
-   ΔDice does, with Spearman ρ = 0.76 (Pancreas), 0.76 (LA 5%) and 0.99 (LA 10%).
+   ΔDice does, with Spearman ρ = 0.78 (Pancreas), 0.75 (LA 5%) and 0.99 (LA 10%).
    Because a rank correlation could be driven purely by separating collapsed runs from
    healthy ones, we recomputed it after removing every configuration that collapses
    outright: ρ remains 0.67 to 0.96. The signal is not merely collapse detection.
