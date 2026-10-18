@@ -28,6 +28,11 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / 'scripts'))
 from utils.metrics import sliding_window_inference, calculate_metric_percase  # noqa
 from paired_significance import load_pancreas, load_la                       # noqa
 
+# Same cuDNN settings as the training-time evaluation, so per-case values
+# reproduce the logged ones exactly (HD95 is sensitive to single-voxel flips).
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 SEEDS = (2020, 42, 123)
 CACHE = ROOT / 'result' / 'percase_cache'
 
