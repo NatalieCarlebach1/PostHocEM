@@ -49,7 +49,7 @@ def pem_rows():
         if len(vals) == len(SEEDS):
             out[stem] = dict(
                 dice=st.mean(float(r['dice']) * 100 for r in vals),
-                dice_sd=st.pstdev([float(r['dice']) * 100 for r in vals]),
+                dice_sd=st.stdev([float(r['dice']) * 100 for r in vals]),
                 jaccard=st.mean(float(r['jaccard']) * 100 for r in vals),
                 hd95=st.mean(float(r['hd95']) for r in vals),
                 asd=st.mean(float(r['asd']) for r in vals),
@@ -81,7 +81,7 @@ def baseline_seed_rows():
         out[(method, stem)] = dict(
             lr=lr,
             dice=st.mean(float(r['dice']) * 100 for r in rows),
-            dice_sd=st.pstdev([float(r['dice']) * 100 for r in rows]),
+            dice_sd=st.stdev([float(r['dice']) * 100 for r in rows]),
             jaccard=st.mean(float(r['jaccard']) * 100 for r in rows),
             hd95=st.mean(float(r['hd95']) for r in rows),
             asd=st.mean(float(r['asd']) for r in rows),
