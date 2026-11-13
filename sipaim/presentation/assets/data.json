@@ -1,0 +1,352 @@
+{
+ "eq_sizes": {
+  "eq_rho": [
+   1453,
+   386
+  ],
+  "eq_loss": [
+   2408,
+   385
+  ],
+  "eq_grad": [
+   1168,
+   342
+  ]
+ },
+ "grad": {
+  "c": [
+   0.5,
+   0.505,
+   0.51,
+   0.515,
+   0.52,
+   0.525,
+   0.53,
+   0.535,
+   0.54,
+   0.545,
+   0.55,
+   0.555,
+   0.56,
+   0.565,
+   0.57,
+   0.575,
+   0.58,
+   0.585,
+   0.59,
+   0.595,
+   0.6,
+   0.605,
+   0.61,
+   0.615,
+   0.62,
+   0.625,
+   0.63,
+   0.635,
+   0.64,
+   0.645,
+   0.65,
+   0.655,
+   0.66,
+   0.665,
+   0.67,
+   0.675,
+   0.68,
+   0.685,
+   0.69,
+   0.695,
+   0.7,
+   0.705,
+   0.71,
+   0.715,
+   0.72,
+   0.725,
+   0.73,
+   0.735,
+   0.74,
+   0.745,
+   0.75,
+   0.755,
+   0.76,
+   0.765,
+   0.77,
+   0.775,
+   0.78,
+   0.785,
+   0.79,
+   0.795,
+   0.8,
+   0.805,
+   0.81,
+   0.815,
+   0.82,
+   0.825,
+   0.83,
+   0.835,
+   0.84,
+   0.845,
+   0.85,
+   0.855,
+   0.86,
+   0.865,
+   0.87,
+   0.875,
+   0.88,
+   0.885,
+   0.89,
+   0.895,
+   0.9,
+   0.905,
+   0.91,
+   0.915,
+   0.92,
+   0.925,
+   0.93,
+   0.935,
+   0.94,
+   0.945,
+   0.95,
+   0.955,
+   0.96,
+   0.965,
+   0.97,
+   0.975,
+   0.98,
+   0.985,
+   0.99,
+   0.995
+  ],
+  "pct": [
+   0.0,
+   2.23,
+   4.47,
+   6.7,
+   8.92,
+   11.15,
+   13.37,
+   15.58,
+   17.79,
+   19.99,
+   22.19,
+   24.37,
+   26.54,
+   28.71,
+   30.86,
+   33.0,
+   35.12,
+   37.23,
+   39.33,
+   41.41,
+   43.47,
+   45.51,
+   47.53,
+   49.54,
+   51.52,
+   53.48,
+   55.42,
+   57.33,
+   59.21,
+   61.07,
+   62.91,
+   64.71,
+   66.49,
+   68.23,
+   69.94,
+   71.62,
+   73.27,
+   74.88,
+   76.45,
+   77.98,
+   79.48,
+   80.94,
+   82.35,
+   83.72,
+   85.05,
+   86.33,
+   87.57,
+   88.76,
+   89.89,
+   90.98,
+   92.01,
+   92.99,
+   93.91,
+   94.78,
+   95.59,
+   96.33,
+   97.01,
+   97.63,
+   98.18,
+   98.67,
+   99.08,
+   99.42,
+   99.68,
+   99.87,
+   99.97,
+   100.0,
+   99.94,
+   99.79,
+   99.55,
+   99.22,
+   98.79,
+   98.26,
+   97.63,
+   96.89,
+   96.04,
+   95.07,
+   93.98,
+   92.77,
+   91.43,
+   89.95,
+   88.33,
+   86.56,
+   84.64,
+   82.55,
+   80.29,
+   77.85,
+   75.22,
+   72.38,
+   69.32,
+   66.02,
+   62.47,
+   58.65,
+   54.51,
+   50.04,
+   45.18,
+   39.89,
+   34.07,
+   27.62,
+   20.32,
+   11.76
+  ],
+  "peak_c": 0.825,
+  "at_090": 88.3
+ },
+ "panels": {
+  "pancreas_ct_20pct_image": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/pancreas_ct_20pct_image.png",
+   "size": [
+    292,
+    318
+   ]
+  },
+  "pancreas_ct_20pct_gt": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/pancreas_ct_20pct_gt.png",
+   "size": [
+    292,
+    318
+   ]
+  },
+  "pancreas_ct_20pct_bcp": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/pancreas_ct_20pct_bcp.png",
+   "size": [
+    292,
+    318
+   ]
+  },
+  "pancreas_ct_20pct_pem": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/pancreas_ct_20pct_pem.png",
+   "size": [
+    306,
+    318
+   ]
+  },
+  "pancreas_ct_20pct_entropy": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/pancreas_ct_20pct_entropy.png",
+   "size": [
+    292,
+    318
+   ]
+  },
+  "pancreas_ct_20pct_corr": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/pancreas_ct_20pct_corr.png",
+   "size": [
+    292,
+    318
+   ]
+  },
+  "la_5pct_image": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_5pct_image.png",
+   "size": [
+    364,
+    272
+   ]
+  },
+  "la_5pct_gt": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_5pct_gt.png",
+   "size": [
+    364,
+    272
+   ]
+  },
+  "la_5pct_bcp": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_5pct_bcp.png",
+   "size": [
+    364,
+    272
+   ]
+  },
+  "la_5pct_pem": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_5pct_pem.png",
+   "size": [
+    364,
+    272
+   ]
+  },
+  "la_5pct_entropy": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_5pct_entropy.png",
+   "size": [
+    364,
+    272
+   ]
+  },
+  "la_5pct_corr": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_5pct_corr.png",
+   "size": [
+    364,
+    272
+   ]
+  },
+  "la_10pct_image": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_10pct_image.png",
+   "size": [
+    380,
+    276
+   ]
+  },
+  "la_10pct_gt": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_10pct_gt.png",
+   "size": [
+    380,
+    276
+   ]
+  },
+  "la_10pct_bcp": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_10pct_bcp.png",
+   "size": [
+    380,
+    276
+   ]
+  },
+  "la_10pct_pem": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_10pct_pem.png",
+   "size": [
+    380,
+    276
+   ]
+  },
+  "la_10pct_entropy": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_10pct_entropy.png",
+   "size": [
+    380,
+    276
+   ]
+  },
+  "la_10pct_corr": {
+   "path": "/home/tals/Documents/PostHocEM/sipaim/figures/panels/la_10pct_corr.png",
+   "size": [
+    380,
+    276
+   ]
+  }
+ }
+}

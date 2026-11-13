@@ -1,0 +1,4 @@
+node_modules/
+qa/
+assets/eqbuild/
+package-lock.json
