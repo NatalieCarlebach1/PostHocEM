@@ -1,0 +1,739 @@
+<title>SIPAIM 2026 PEM Talk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one 1280x720 slide scaled to fit the window for presenting; under 760px the slides stack as a scrolling handout. */
+:root {
+  --bg: #E7E4ED; --stage: #FFFFFF; --ink: #1E1B2E; --muted: #66637A; --line: #E2DFE9; --card: #F2F0F6;
+  --inv-bg: #24163A; --inv-ink: #FFFFFF; --inv-muted: #BEB9CD; --inv-card: #33244D; --inv-accent: #F2913A;
+  --pem: #0E8F9B; --entropy: #C9650A; --bad: #C3364A; --base-a: #B7B3C4; --base-b: #6E6B7B; --base-c: #B73779;
+  --pem-tint: #D6EFF1; --bad-tint: #F8DDE0; --sig-bg: #0E8F9B; --sig-ink: #FFFFFF;
+  --head-bg: #24163A; --head-ink: #FFFFFF; --bar: #FFFFFF; --focus: #0E8F9B; --on-bar: #FFFFFF;
+  --f-display: "Archivo", "Arial Narrow", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C0814; --stage: #1A1228; --ink: #ECE9F3; --muted: #A7A2B9; --line: #33284A; --card: #241A37;
+    --inv-bg: #2C1C48; --inv-ink: #FFFFFF; --inv-muted: #C3BED3; --inv-card: #3A2958; --inv-accent: #F49A47;
+    --pem: #33C4D0; --entropy: #F0903C; --bad: #EA6B7C; --base-a: #6F6A84; --base-b: #A6A1B8; --base-c: #D869A6;
+    --pem-tint: #12393D; --bad-tint: #4A1F2B; --sig-bg: #168F9A; --sig-ink: #FFFFFF;
+    --head-bg: #2C1C48; --head-ink: #FFFFFF; --bar: #1A1228; --focus: #33C4D0; --on-bar: #10141F;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C0814; --stage: #1A1228; --ink: #ECE9F3; --muted: #A7A2B9; --line: #33284A; --card: #241A37;
+  --inv-bg: #2C1C48; --inv-ink: #FFFFFF; --inv-muted: #C3BED3; --inv-card: #3A2958; --inv-accent: #F49A47;
+  --pem: #33C4D0; --entropy: #F0903C; --bad: #EA6B7C; --base-a: #6F6A84; --base-b: #A6A1B8; --base-c: #D869A6;
+  --pem-tint: #12393D; --bad-tint: #4A1F2B; --sig-bg: #168F9A; --sig-ink: #FFFFFF;
+  --head-bg: #2C1C48; --head-ink: #FFFFFF; --bar: #1A1228; --focus: #33C4D0; --on-bar: #10141F;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); }
+* { box-sizing: border-box; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+.app { height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) auto auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.viewport { min-height: 0; display: grid; place-items: center; overflow: hidden; padding-block: 14px 8px; }
+.frame { position: relative; width: 1280px; height: 720px; }
+.deck { position: absolute; inset: 0 auto auto 0; width: 1280px; height: 720px; transform-origin: 0 0; }
+
+/* ── Slides ─────────────────────────────────────────────────────────────── */
+.slide { width: 1280px; height: 720px; background: var(--stage); color: var(--ink);
+  border-radius: 10px; box-shadow: 0 10px 40px rgba(20, 10, 35, .18);
+  padding: 44px 64px 26px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 22px;
+  font-size: 21px; line-height: 1.42; overflow: hidden; position: relative; }
+.slide:not(.is-active) { display: none; }
+.slide.inverse { background: var(--inv-bg); color: var(--inv-ink); }
+.slide h1, .slide h2 { font-family: var(--f-display); font-weight: 700; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+.slide h2 { font-size: 40px; line-height: 1.12; }
+.eyebrow { font-family: var(--f-display); font-weight: 700; font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.inverse .eyebrow { color: var(--inv-accent); }
+.body { min-height: 0; display: grid; gap: 28px; align-content: center; }
+.foot { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+.inverse .foot { color: var(--inv-muted); }
+.cap { font-size: 15px; color: var(--muted); font-style: italic; line-height: 1.38; margin: 0; }
+.inverse .cap { color: var(--inv-muted); }
+.card { background: var(--card); border-radius: 14px; padding: 24px 28px; min-width: 0; }
+.inverse .card { background: var(--inv-card); }
+p { margin: 0; }
+.stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--f-mono); }
+figure { margin: 0; }
+img { display: block; }
+math { font-size: 1.25em; }
+.notes { display: none; }
+
+/* 1 title */
+.s-title { grid-template-columns: 1.15fr .85fr; align-items: center; }
+.s-title h1 { font-size: 54px; line-height: 1.06; margin: 6px 0 22px; }
+.s-title .authors { font-size: 24px; }
+.s-title .affil { font-size: 18px; color: var(--inv-muted); margin-top: 4px; }
+.s-title figure img { width: 100%; border-radius: 8px; }
+/* 2 observation */
+.s-obs { grid-template-columns: 1.1fr .9fr; align-items: start; }
+.s-obs figure img { width: 100%; border-radius: 8px; }
+.big { font-family: var(--f-display); font-weight: 800; font-size: 84px; line-height: .95; color: var(--entropy); letter-spacing: -.02em; }
+.big-label { font-size: 20px; margin-top: 6px; }
+/* 3 method */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.step { display: flex; flex-direction: column; gap: 10px; }
+.badge { width: 42px; height: 42px; border-radius: 50%; background: var(--pem); color: var(--on-bar); display: grid; place-items: center; font-family: var(--f-display); font-weight: 800; font-size: 20px; }
+.inverse .badge { background: var(--inv-accent); color: var(--inv-bg); }
+.step h3, .card h3 { font-family: var(--f-display); font-size: 22px; line-height: 1.2; margin: 0; }
+.step p { font-size: 18px; }
+.eq-row { display: grid; grid-template-columns: 1.25fr 1fr; gap: 36px; align-items: center; }
+.eq-row math { font-size: 1.5em; }
+/* 4 gradient */
+.s-grad { grid-template-columns: .85fr 1.15fr; align-items: start; }
+.s-grad ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 8px; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart text { fill: var(--ink); font-family: var(--f-body); }
+.chart .axis-label, .chart .tick { fill: var(--muted); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis { stroke: var(--muted); stroke-width: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 16px; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.swatch { width: 18px; height: 12px; border-radius: 3px; display: inline-block; }
+.swatch.line { height: 4px; }
+.swatch.dash { height: 0; border-top: 3px dashed var(--entropy); border-radius: 0; }
+.c-pem { background: var(--pem); } .c-base-a { background: var(--base-a); } .c-base-b { background: var(--base-b); }
+.c-base-c { background: var(--base-c); } .c-bad { background: var(--bad); }
+/* 5 diagnostic */
+.s-rho { grid-template-columns: 1.08fr .92fr; align-items: start; }
+.stat-red { font-family: var(--f-display); font-weight: 800; font-size: 60px; line-height: 1; color: var(--bad); letter-spacing: -.02em; }
+/* 6 results */
+.s-res { grid-template-columns: 1.62fr 1fr; align-items: start; }
+.gain-list { display: grid; grid-template-columns: auto 1fr; gap: 10px 20px; align-items: center; }
+.gain { font-family: var(--f-display); font-weight: 800; font-size: 56px; line-height: 1; color: var(--pem); font-variant-numeric: tabular-nums; }
+/* 7 panels */
+.panels-wrap { overflow-x: auto; }
+.panels { display: grid; grid-template-columns: 104px repeat(6, minmax(0, 1fr)); grid-template-rows: auto repeat(3, 146px); gap: 8px; min-width: 640px; }
+.panels .h { font-family: var(--f-display); font-weight: 700; font-size: 18px; text-align: center; align-self: end; }
+.panels .r { font-family: var(--f-display); font-weight: 700; font-size: 17px; text-align: right; align-self: center; line-height: 1.2; }
+.panels .cell { display: grid; place-items: center; min-width: 0; min-height: 0; }
+.panels .cell img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 3px; }
+/* tables */
+.table-wrap { overflow-x: auto; min-width: 0; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 9px 12px; text-align: center; border: 1px solid var(--line); }
+thead th { background: var(--head-bg); color: var(--head-ink); font-family: var(--f-display); font-weight: 700; }
+td:first-child, th:first-child { text-align: left; }
+.sig { background: var(--sig-bg); color: var(--sig-ink); font-weight: 600; }
+.ns { background: var(--card); }
+.neg { background: var(--bad-tint); color: var(--bad); font-weight: 600; }
+.sel td { background: var(--pem-tint); font-weight: 700; }
+.sel td.neg { background: var(--bad-tint); }
+.deg-0 { color: var(--pem); font-weight: 700; } .deg-n { color: var(--bad); font-weight: 700; }
+.grp td { background: var(--card); font-style: italic; font-weight: 600; text-align: left; }
+.t-sig { font-size: 19px; } .t-sig td { padding: 16px 14px; }
+.t-abl { font-size: 18px; } .t-abl th, .t-abl td { padding: 8px 10px; }
+.t-dense { font-size: 15px; } .t-dense th, .t-dense td { padding: 4px 10px; }
+.b { font-weight: 700; }
+.s-sig { grid-template-columns: 1.75fr 1fr; align-items: start; }
+.keyrow { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.mid-stat { font-family: var(--f-display); font-weight: 800; font-size: 36px; line-height: 1.05; }
+/* 10 takeaways */
+.take p { font-size: 18px; }
+.thanks { font-family: var(--f-display); font-weight: 800; font-size: 40px; }
+.contact { font-family: var(--f-mono); font-size: 18px; color: var(--inv-accent); user-select: all; }
+/* backup */
+.cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+.cols2 ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 10px; font-size: 18px; }
+
+/* ── Controls ──────────────────────────────────────────────────────────── */
+.bar { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding-block: 6px 12px; }
+.bar button { font: 600 14px var(--f-body); color: var(--ink); background: var(--bar); border: 1px solid var(--line);
+  border-radius: 999px; padding: 8px 16px; cursor: pointer; }
+.bar button:hover { border-color: var(--muted); }
+.bar button[aria-pressed="true"] { background: var(--ink); color: var(--stage); border-color: var(--ink); }
+.bar button:disabled { opacity: .4; cursor: default; }
+.counter { font: 500 14px var(--f-mono); color: var(--muted); min-width: 132px; text-align: center; font-variant-numeric: tabular-nums; }
+.timer { font-family: var(--f-mono) !important; font-variant-numeric: tabular-nums; }
+.timer.over { color: var(--bad) !important; }
+.notes-panel { max-height: 30vh; overflow-y: auto; background: var(--bar); border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 20px; margin-bottom: 12px; font-size: 16px; line-height: 1.5; width: min(1100px, 100%); justify-self: center; }
+.notes-panel .cue, .notes .cue { font: 500 13px var(--f-mono); color: var(--entropy); display: block; margin-bottom: 4px; }
+.hint { font-size: 12px; color: var(--muted); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .slide.is-active { animation: fade .22s ease-out; }
+  @keyframes fade { from { opacity: .35; } to { opacity: 1; } }
+}
+
+/* ── Handout layout for narrow screens ─────────────────────────────────── */
+@media (max-width: 759px) {
+  .app { height: auto; display: block; }
+  .viewport { display: block; overflow: visible; padding-block: 16px; }
+  .frame { width: auto !important; height: auto !important; }
+  .deck { position: static; width: auto; height: auto; transform: none !important; display: flex; flex-direction: column; gap: 16px; }
+  .slide, .slide:not(.is-active) { display: grid; width: auto; height: auto; padding: 22px 18px 16px; font-size: 16px; gap: 16px; border-radius: 12px; animation: none; }
+  .slide h2 { font-size: 25px; }
+  .s-title h1 { font-size: 30px; }
+  .s-title .authors { font-size: 17px; }
+  .body, .s-title, .s-obs, .s-grad, .s-rho, .s-res, .s-sig, .steps, .eq-row, .cards3, .cols2 { grid-template-columns: minmax(0, 1fr); }
+  .big { font-size: 56px; } .gain { font-size: 40px; } .stat-red { font-size: 42px; } .mid-stat { font-size: 28px; }
+  .step p, .take p, .cols2 ul, .big-label { font-size: 16px; }
+  .eq-row math { font-size: 1.15em; }
+  .thanks { font-size: 28px; }
+  .bar { display: none; }
+  .notes-panel { display: none !important; }
+  .notes { display: block; font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+  .inverse .notes { color: var(--inv-muted); border-color: var(--inv-card); }
+  .notes summary { cursor: pointer; font-weight: 600; }
+  .t-sig, .t-abl, .t-dense { font-size: 14px; }
+}
+</style>
+
+<div class="app">
+<main class="viewport" id="viewport">
+<div class="frame" id="frame">
+<div class="deck" id="deck">
+
+<!-- 1 ─────────────────────────────────────────────────────────────── -->
+<section class="slide inverse is-active" id="slide-1" aria-label="Slide 1: title">
+  <div></div>
+  <div class="body s-title">
+    <div>
+      <p class="eyebrow">SIPAIM 2026 · Lima, Peru · Paper 71</p>
+      <h1>Post-hoc Entropy Minimization Improves Semi-Supervised Medical Image Segmentation</h1>
+      <p class="authors">Tal Shaharabany · Natalie Carlebach · Lior Wolf</p>
+      <p class="affil">Tel Aviv University</p>
+    </div>
+    <figure class="stack">
+      <img src="__IMG_la_5pct_entropy__" alt="Per-voxel entropy of a converged semi-supervised model on a left-atrium MRI slice: a thin bright rim along the organ boundary over a dark interior" width="364" height="272">
+      <figcaption class="cap">Residual entropy of a converged SSL model</figcaption>
+    </figure>
+  </div>
+  <div class="foot"><span></span><span>1</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">0:00–0:20</span>Thank you. I'm Tal Shaharabany from Tel Aviv University; this is joint work with Natalie Carlebach and Lior Wolf. The image on the right is the residual uncertainty of a fully trained semi-supervised model. The talk is about the thin bright rim you see, and how a few minutes of label-free fine-tuning can use it.</div></details>
+</section>
+
+<!-- 2 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" id="slide-2" aria-label="Slide 2">
+  <h2>Converged SSL leaves entropy at the boundary</h2>
+  <div class="body s-obs">
+    <figure class="stack">
+      <img src="__IMG_la_5pct_entropy__" alt="Per-voxel entropy of the BCP model on a left-atrium test case: a thin bright rim on the predicted surface, dark interior" width="364" height="272">
+      <figcaption class="cap">BCP on an LA 5% test case: entropy forms a thin rim on the predicted surface; the interior is dark.</figcaption>
+    </figure>
+    <div class="stack" style="gap:18px">
+      <div><div class="big num">89–95%</div><p class="big-label">of the prediction entropy on unlabeled volumes…</p></div>
+      <div><div class="big num">5–9%</div><p class="big-label">…sits in this share of the voxels (c ≤ 0.99)</p></div>
+      <p style="font-size:19px">SSL training stops using the unlabeled data at convergence. The uncertainty that remains is concentrated where segmentation errors are, and finding it needs no labels.</p>
+      <p class="cap">Measured on three BCP checkpoints: Pancreas-CT 20%, LA 5% and LA 10% labeled.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Shaharabany, Carlebach, Wolf · SIPAIM 2026</span><span>2</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">0:20–1:20</span>Semi-supervised methods such as BCP use a large unlabeled set during training, and then stop using it once training converges. We looked at what a converged model still "doesn't know" about that unlabeled data. On three BCP checkpoints (pancreas CT at 20% labels, and left atrium MRI at 5% and 10%), 89 to 95 percent of the prediction entropy sits in only 5 to 9 percent of the voxels. And those voxels are not random: they form a thin shell on the predicted organ surface, which is exactly where segmentation errors live. The interior is saturated. So the question of this paper is: can we use that leftover, spatially structured uncertainty after training, without any labels?</div></details>
+</section>
+
+<!-- 3 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" id="slide-3" aria-label="Slide 3">
+  <h2>PEM: entropy minimization after convergence</h2>
+  <div class="body" style="grid-template-rows:auto auto; gap:34px">
+    <ol class="steps" style="list-style:none; margin:0; padding:0">
+      <li class="card step"><span class="badge">1</span><h3>Load a converged checkpoint</h3><p>Any SSL method. Here: BCP, released for LA and reproduced for Pancreas-CT.</p></li>
+      <li class="card step"><span class="badge">2</span><h3>Minimize entropy on unlabeled data</h3><p>Confident-shell mask τ<sub>m</sub> = 0.90. No labels, no pseudo-labels, no new architecture.</p></li>
+      <li class="card step"><span class="badge">3</span><h3>Stop after 2–5 epochs</h3><p>Budget fixed per dataset; the final epoch is reported. Fine-tuning takes under a minute.</p></li>
+    </ol>
+    <div class="eq-row">
+      <div class="stack" style="gap:10px">
+        <math display="block" aria-label="L PEM equals the sum of m i H i over the sum of m i plus epsilon, with m i equal to the indicator that c i is at most tau m"><mrow><msub><mi>ℒ</mi><mtext>PEM</mtext></msub><mo>=</mo><mfrac><mrow><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>m</mi><mi>i</mi></msub><msub><mi>H</mi><mi>i</mi></msub></mrow><mrow><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>m</mi><mi>i</mi></msub><mo>+</mo><mi>ε</mi></mrow></mfrac><mo>,</mo><mspace width="1.2em"></mspace><msub><mi>m</mi><mi>i</mi></msub><mo>=</mo><mn>𝟏</mn><mo stretchy="false">[</mo><msub><mi>c</mi><mi>i</mi></msub><mo>≤</mo><msub><mi>τ</mi><mi>m</mi></msub><mo stretchy="false">]</mo></mrow></math>
+        <p class="cap">Averaged over unlabeled volumes; ε guards an empty mask.</p>
+      </div>
+      <div class="stack" style="font-size:19px">
+        <p><b>H<sub>i</sub></b> entropy of voxel i; <b>c<sub>i</sub></b> its confidence (max class probability).</p>
+        <p>The mask keeps the voxels the model is not yet sure about, and the loss is their mean entropy.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Shaharabany, Carlebach, Wolf · SIPAIM 2026</span><span>3</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">1:20–2:20</span>The method, Post-hoc Entropy Minimization or PEM, is deliberately simple. One: take any converged SSL checkpoint. In our experiments that is BCP: the released checkpoints for left atrium, and our reproduction of BCP for pancreas. Two: fine-tune it on the unlabeled volumes with a single loss, the mean entropy of the voxels whose confidence is below a threshold tau-m. We use tau-m = 0.90. There are no labels, no pseudo-labels, no teacher, no architectural change. Three: stop after a fixed budget, two epochs for pancreas and five for left atrium, and report the final epoch. The fine-tuning itself takes under a minute on one GPU. Entropy minimization is classical. What is new is the regime: applying it after convergence, when the remaining entropy already sits on the boundary.</div></details>
+</section>
+
+<!-- 4 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" id="slide-4" aria-label="Slide 4">
+  <h2>The entropy gradient targets the boundary</h2>
+  <div class="body s-grad">
+    <div class="stack" style="gap:18px">
+      <math display="block" aria-label="partial H over partial z equals minus z p times one minus p"><mrow><mfrac><mrow><mo>∂</mo><mi>H</mi></mrow><mrow><mo>∂</mo><mi>z</mi></mrow></mfrac><mo>=</mo><mo>−</mo><mi>z</mi><mspace width="0.15em"></mspace><mi>p</mi><mspace width="0.15em"></mspace><mo stretchy="false">(</mo><mn>1</mn><mo>−</mo><mi>p</mi><mo stretchy="false">)</mo></mrow></math>
+      <ul>
+        <li>Vanishes on the saturated interior (p → 0 or 1)</li>
+        <li>Vanishes at maximum ambiguity (p = 0.5)</li>
+        <li>Peaks on partly decided voxels (p ≈ 0.82), the band beside the boundary</li>
+      </ul>
+      <p style="font-size:18px">So the unmasked loss already focuses on the boundary band. The mask adds insurance: it drops voxels above τ<sub>m</sub> and renormalizes the loss, and our ablation does not separate those two effects.</p>
+    </div>
+    <figure class="stack chart" style="gap:10px">
+      <div id="chart-grad" role="img" aria-label="Entropy-gradient magnitude against voxel confidence: zero at 0.5, peak near 0.82, about 88 percent of peak at 0.90, falling to zero as confidence approaches 1"></div>
+      <div class="legend"><span><i class="swatch line c-pem"></i>kept by the mask (c ≤ 0.90)</span><span><i class="swatch line c-base-a"></i>removed by the mask (c &gt; 0.90)</span></div>
+      <figcaption class="cap">At c = 0.90 the gradient is still 88% of its peak, so the mask changes which voxels get a gradient, not only the normalization.</figcaption>
+    </figure>
+  </div>
+  <div class="foot"><span>Shaharabany, Carlebach, Wolf · SIPAIM 2026</span><span>4</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">2:20–3:30</span>Why does this work without any stabilizer? Look at the gradient of a voxel's entropy with respect to its logit: minus z times p times one-minus-p. It vanishes in three places: on the saturated interior, where p is near 0 or 1, and at maximum ambiguity, p = 0.5. It peaks at p of about 0.82. So the gradient is automatically supported on a band of partly decided voxels next to the decision surface, the boundary shell from the previous slide, with no mask at all. What does the mask add, then? At tau-m = 0.90 the gradient is still 88 percent of its peak, so the mask both removes those voxels and renormalizes the loss over the ones it keeps. Our ablation does not separate these two effects, so we describe the mask as insurance against collapse. We'll see the evidence for that in a moment.</div></details>
+</section>
+
+<!-- 5 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" id="slide-5" aria-label="Slide 5">
+  <h2>A label-free check before fine-tuning</h2>
+  <div class="body s-rho">
+    <div class="stack" style="gap:12px">
+      <div style="display:grid; grid-template-columns:auto 1fr; gap:22px; align-items:center">
+        <math display="block" aria-label="rho f of tau equals the sum of H i times the indicator that c i is at most tau, over the sum of H i"><mrow><msub><mi>ρ</mi><mi>f</mi></msub><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo><mo>=</mo><mfrac><mrow><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>H</mi><mi>i</mi></msub><mspace width="0.15em"></mspace><mn>𝟏</mn><mo stretchy="false">[</mo><msub><mi>c</mi><mi>i</mi></msub><mo>≤</mo><mi>τ</mi><mo stretchy="false">]</mo></mrow><mrow><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>H</mi><mi>i</mi></msub></mrow></mfrac></mrow></math>
+        <p style="font-size:16px">Share of the prediction entropy held by low-confidence voxels (c ≤ 0.99), from one forward pass on unlabeled data. No labels, no validation set.</p>
+      </div>
+      <figure class="stack chart" style="gap:8px">
+        <div id="chart-rho" role="img" aria-label="Shell entropy concentration: supervised-only 0.552, BCP Pancreas 0.894, BCP LA 5% 0.948, BCP LA 10% 0.945; dashed threshold at 0.85"></div>
+        <div class="legend"><span><i class="swatch c-bad"></i>no SSL</span><span><i class="swatch c-pem"></i>BCP</span><span><i class="swatch dash"></i>ρ* = 0.85 (provisional)</span></div>
+      </figure>
+    </div>
+    <div class="card stack">
+      <h3>Negative control: supervised only</h3>
+      <p style="font-size:19px">ρ<sub>f</sub> = 0.55, below ρ* = 0.85</p>
+      <div class="stat-red num">75.66 → 17.29</div>
+      <p style="font-size:17px">Dice after PEM at the Pancreas-selected setting (τ<sub>m</sub> = 0.90, 5×10<sup>−5</sup>, E = 2); mean of 3 seeds, SD 5.47.</p>
+      <p style="font-size:19px">The same setting improves BCP Pancreas-CT by +1.02 Dice. Without a boundary shell, sharpening reinforces errors.</p>
+      <p class="cap">ρ* is provisional: it rests on these four checkpoints. ρ<sub>f</sub> has no spatial term; boundary localization comes from distance to the boundary (5–11 vs 14.5 voxels).</p>
+    </div>
+  </div>
+  <div class="foot"><span>Shaharabany, Carlebach, Wolf · SIPAIM 2026</span><span>5</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">3:30–4:40</span>Because the method hurts when the uncertainty is not boundary-shaped, we want a check we can run before fine-tuning, without labels. That is rho-f: the fraction of total prediction entropy held by the low-confidence voxels, from a single forward pass on the unlabeled data. The three BCP checkpoints all score about 0.9 or higher. A supervised-only network trained on the same 12 pancreas labels scores 0.55; its uncertainty is scattered through the interior. And on that checkpoint PEM fails badly: the very setting that improves BCP pancreas by about one Dice point collapses the supervised model from 75.7 to 17.3 Dice. Two caveats: the threshold of 0.85 rests on these four checkpoints only, and rho-f itself has no spatial term. That the uncertain voxels sit on the boundary we show separately, with their distance to the boundary.</div></details>
+</section>
+
+<!-- 6 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" id="slide-6" aria-label="Slide 6">
+  <h2>PEM sharpens boundaries: HD95 down 25–44%</h2>
+  <div class="body s-res">
+    <figure class="stack chart" style="gap:10px">
+      <div class="legend"><span><i class="swatch c-base-a"></i>BCP</span><span><i class="swatch c-base-b"></i>+ PL-FT</span><span><i class="swatch c-base-c"></i>+ SC</span><span><i class="swatch c-pem"></i>+ PEM</span></div>
+      <div id="chart-hd" role="img" aria-label="HD95 in voxels, three-seed means. Pancreas: BCP 7.81, PL-FT 7.68, SC 7.62, PEM 5.87. LA 5%: 13.91, 10.11, 11.77, 7.79. LA 10%: 9.88, 6.37, 8.04, 6.87"></div>
+      <figcaption class="cap">HD95 in voxels, lower is better; 3-seed means. PEM has the lowest mean HD95 on Pancreas-CT and LA 5%; pseudo-label fine-tuning (PL-FT) is lowest on LA 10%.</figcaption>
+    </figure>
+    <div class="card stack" style="gap:16px">
+      <h3>Dice gain over BCP</h3>
+      <div class="gain-list">
+        <span class="gain">+1.02</span><span>Pancreas-CT 20%</span>
+        <span class="gain">+0.66</span><span>LA 5%</span>
+        <span class="gain">+0.62</span><span>LA 10%</span>
+      </div>
+      <p class="cap">All methods chose their learning rate by the same rule on the labeled volumes; 3-seed means.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Shaharabany, Carlebach, Wolf · SIPAIM 2026</span><span>6</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">4:40–5:50</span>Here are the main results, on the three BCP checkpoints, against two post-hoc baselines run under the identical protocol: pseudo-label fine-tuning and self-consistency. Temperature scaling is omitted because it cannot move the argmax; it changes Dice by less than 0.04. PEM reduces the 95th-percentile Hausdorff distance by 25 percent on pancreas, 44 percent on LA 5%, and 30 percent on LA 10%, and improves Dice by about 1.0, 0.7 and 0.6 points. Against the baselines, PEM has the lowest mean HD95 on pancreas and LA 5%; on LA 10% pseudo-label fine-tuning is lower. Every method, PEM and both baselines, selected its learning rate with the same rule on the labeled training volumes, never on the test set, and all numbers are three-seed means.</div></details>
+</section>
+
+<!-- 7 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" id="slide-7" aria-label="Slide 7">
+  <h2>Corrections land on the organ surface</h2>
+  <div class="body" style="grid-template-rows:minmax(0,1fr) auto; gap:14px">
+    <div class="panels-wrap">
+      <div class="panels" role="group" aria-label="Median-improvement test cases: image, ground truth, BCP, PEM, entropy and correction map for three settings">
+        <span></span><span class="h">Image</span><span class="h">GT</span><span class="h">BCP</span><span class="h">PEM</span><span class="h">Entropy</span><span class="h">Corr.</span>
+        <span class="r">Pancreas<br>20%</span>
+        <span class="cell"><img src="__IMG_pancreas_ct_20pct_image__" alt="Pancreas CT slice"></span>
+        <span class="cell"><img src="__IMG_pancreas_ct_20pct_gt__" alt="Pancreas ground truth in green"></span>
+        <span class="cell"><img src="__IMG_pancreas_ct_20pct_bcp__" alt="BCP prediction in red, Dice 85.49"></span>
+        <span class="cell"><img src="__IMG_pancreas_ct_20pct_pem__" alt="PEM prediction in cyan, Dice 86.53, plus 1.04"></span>
+        <span class="cell"><img src="__IMG_pancreas_ct_20pct_entropy__" alt="BCP entropy map on the pancreas slice"></span>
+        <span class="cell"><img src="__IMG_pancreas_ct_20pct_corr__" alt="Correction map on the pancreas slice: sparse corrections on the boundary"></span>
+        <span class="r">LA 5%</span>
+        <span class="cell"><img src="__IMG_la_5pct_image__" alt="Left atrium MRI slice"></span>
+        <span class="cell"><img src="__IMG_la_5pct_gt__" alt="Left atrium ground truth in green"></span>
+        <span class="cell"><img src="__IMG_la_5pct_bcp__" alt="BCP prediction in red, Dice 89.59"></span>
+        <span class="cell"><img src="__IMG_la_5pct_pem__" alt="PEM prediction in cyan, Dice 90.12, plus 0.53"></span>
+        <span class="cell"><img src="__IMG_la_5pct_entropy__" alt="BCP entropy map: bright rim on the boundary"></span>
+        <span class="cell"><img src="__IMG_la_5pct_corr__" alt="Correction map: green fixes outnumber red along the rim"></span>
+        <span class="r">LA 10%</span>
+        <span class="cell"><img src="__IMG_la_10pct_image__" alt="Left atrium MRI slice"></span>
+        <span class="cell"><img src="__IMG_la_10pct_gt__" alt="Left atrium ground truth in green"></span>
+        <span class="cell"><img src="__IMG_la_10pct_bcp__" alt="BCP prediction in red, Dice 89.28"></span>
+        <span class="cell"><img src="__IMG_la_10pct_pem__" alt="PEM prediction in cyan, Dice 89.98, plus 0.70"></span>
+        <span class="cell"><img src="__IMG_la_10pct_entropy__" alt="BCP entropy map on the LA 10% slice"></span>
+        <span class="cell"><img src="__IMG_la_10pct_corr__" alt="Correction map: red covers part of the rim"></span>
+      </div>
+    </div>
+    <p class="cap">Median-improvement test case per setting (seed 2020), so nothing is cherry-picked. GT green, BCP red, PEM cyan, Dice overlaid; Corr.: green = PEM fixes, red = PEM breaks.</p>
+  </div>
+  <div class="foot"><span>Shaharabany, Carlebach, Wolf · SIPAIM 2026</span><span>7</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">5:50–6:40</span>Qualitatively, these are the median-improvement test cases for each setting, chosen by rule, so nothing is cherry-picked. The entropy column shows the thin bright rim the gradient acts on. In the correction column, green is where PEM fixes BCP and red is where it breaks it. Corrections of either sign lie on the surface, not in the interior; that is what the mechanism predicts. Their balance follows the headroom: green clearly dominates on LA 5%, corrections are sparse on pancreas, and on the most saturated setting, LA 10%, red covers part of the rim even though this case improves overall.</div></details>
+</section>
+
+<!-- 8 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" id="slide-8" aria-label="Slide 8">
+  <div><h2>Where the gain holds up: Pancreas-CT, not LA</h2><p class="cap" style="margin-top:8px">Exploratory retrospective analysis · per-case Wilcoxon on seed-averaged cases · Holm across the 3 settings · HD95 primary</p></div>
+  <div class="body s-sig">
+    <div class="stack" style="gap:16px">
+      <div class="table-wrap">
+        <table class="t-sig">
+          <thead><tr><th>Holm-adjusted p, HD95</th><th>PEM vs BCP</th><th>PEM vs PL-FT</th><th>PEM vs SC</th></tr></thead>
+          <tbody>
+            <tr><td class="b">Pancreas-CT 20%<br><span style="font-weight:400">N = 18</span></td><td class="sig">&lt; .001<br><span style="font-weight:400">17 of 18 cases</span></td><td class="sig">.003</td><td class="sig">.003</td></tr>
+            <tr><td class="b">LA 5%<br><span style="font-weight:400">N = 20</span></td><td class="ns">.059</td><td class="ns">.701</td><td class="ns">.153</td></tr>
+            <tr><td class="b">LA 10%<br><span style="font-weight:400">N = 20</span></td><td class="ns">.059</td><td class="ns">.405</td><td class="ns">.153</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="keyrow"><i class="swatch c-pem" style="width:22px;height:22px"></i>p &lt; 0.05 after Holm correction</div>
+      <p class="cap">Budgets, grid bounds and the Pancreas base checkpoint were informed by test results; Holm correction does not remove that bias.</p>
+    </div>
+    <div class="card stack" style="font-size:19px">
+      <p><b>Pancreas-CT:</b> lower HD95 than BCP and both post-hoc baselines.</p>
+      <p><b>LA:</b> gains over BCP are nominal (raw p = .030, .033); no significant difference from PL-FT on either metric.</p>
+      <p><b>Dice vs BCP:</b> Holm p = .042, .090, .041.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Shaharabany, Carlebach, Wolf · SIPAIM 2026</span><span>8</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">6:40–7:50</span>Are these gains reliable? We ran per-case paired Wilcoxon tests, averaging each case over the three seeds first, with HD95 as the primary endpoint and Holm correction across the three settings. On pancreas the boundary gain is clear: PEM lowers HD95 against BCP on 17 of 18 cases, and beats both pseudo-labeling and self-consistency after correction. On left atrium it is not: the HD95 gains over BCP are nominal, raw p of .03 but .059 after correction, and we detect no significant difference from pseudo-label fine-tuning on either metric. We call these tests exploratory, and I want to be explicit why: the epoch budgets, the learning-rate grid bounds and the pancreas base checkpoint were informed by earlier test-set results, and a multiplicity correction does not remove that kind of selection bias. Our reading: PEM's advantage over pseudo-labeling shrinks as the checkpoint saturates, which is what the gradient analysis predicts, since the entropy gradient vanishes as predictions commit.</div></details>
+</section>
+
+<!-- 9 ─────────────────────────────────────────────────────────────── -->
+<section class="slide" id="slide-9" aria-label="Slide 9">
+  <h2>The mask is insurance, not a source of gain</h2>
+  <div class="body" style="grid-template-rows:auto auto auto; gap:14px">
+    <div class="table-wrap">
+      <table class="t-abl">
+        <thead>
+          <tr><th rowspan="2">Mask</th><th colspan="2">LA 5%</th><th colspan="2">LA 10%</th><th colspan="2">Pancreas-CT 20%</th><th rowspan="2">Degraded</th></tr>
+          <tr><th>5×10<sup>−6</sup></th><th>1×10<sup>−5</sup></th><th>5×10<sup>−6</sup></th><th>1×10<sup>−5</sup></th><th>1×10<sup>−5</sup></th><th>5×10<sup>−5</sup></th></tr>
+        </thead>
+        <tbody id="abl-body"></tbody>
+      </table>
+    </div>
+    <p class="cap">ΔDice vs BCP at each dataset's fixed endpoint, seed 2020; learning rates in the second header row. Red cells: the checkpoint got worse.</p>
+    <div class="cards3">
+      <div class="card stack" style="gap:6px"><div class="mid-stat" style="color:var(--pem)">0 of 6</div><p style="font-size:17px">cells degraded at τ<sub>m</sub> = 0.90, which also has the highest mean gain (+0.72)</p></div>
+      <div class="card stack" style="gap:6px"><div class="mid-stat" style="color:var(--bad)">up to −30</div><p style="font-size:17px">Dice when the mask is too loose (τ<sub>m</sub> = 0.999, LA 10%)</p></div>
+      <div class="card stack" style="gap:6px"><div class="mid-stat" style="color:var(--base-b)">+0.12 / +0.08</div><p style="font-size:17px">Dice in favour of no mask on Pancreas-CT, a robust instance-norm checkpoint</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>Shaharabany, Carlebach, Wolf · SIPAIM 2026</span><span>9</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">7:50–8:50</span>What does the mask buy? This is the ablation, read at each dataset's fixed endpoint, not at a peak. Loosening the mask from 0.90 toward 0.999 readmits the saturated interior and approaches the unmasked loss, and the number of degraded cells, in red, rises along that path from zero to three. The failures are large: the loosest mask costs 30 Dice points on LA 10%. tau-m = 0.90 is the only threshold that never degrades a BCP checkpoint, and it also has the highest mean gain. tau-m = 0.95 has the single largest cell, but it beats 0.99 in only three of six cells, so we don't recommend it. On the robust instance-normalized pancreas checkpoint the unmasked loss is slightly better. So the mask is insurance against collapse on brittle checkpoints, not a source of gain.</div></details>
+</section>
+
+<!-- 10 ────────────────────────────────────────────────────────────── -->
+<section class="slide inverse" id="slide-10" aria-label="Slide 10: takeaways">
+  <h2>Takeaways</h2>
+  <div class="body" style="grid-template-rows:auto auto auto; gap:22px">
+    <div class="cards3">
+      <div class="card stack take"><span class="badge">1</span><h3>Residual entropy is structured</h3><p>On converged BCP checkpoints it sits in a few low-confidence voxels on the organ surface. ρ<sub>f</sub> measures the concentration from one forward pass.</p></div>
+      <div class="card stack take"><span class="badge">2</span><h3>A cheap post-hoc step</h3><p>2–5 epochs, no labels, under a minute of fine-tuning: HD95 −25% to −44%, Dice +0.6 to +1.0. Clearest gain on Pancreas-CT.</p></div>
+      <div class="card stack take"><span class="badge">3</span><h3>Use it with care</h3><p>Check ρ<sub>f</sub> first, keep τ<sub>m</sub> = 0.90, and set the learning rate by normalization type: 5×10<sup>−6</sup> batch-norm, up to 5×10<sup>−5</sup> instance-norm.</p></div>
+    </div>
+    <p style="color:var(--inv-muted); font-size:18px">Limitations: the significance tests are exploratory; ρ* rests on four checkpoints; 18–20 test volumes.</p>
+    <div><div class="thanks">Thank you. Questions?</div><div class="contact">shaharabany@mail.tau.ac.il</div></div>
+  </div>
+  <div class="foot"><span></span><span>10</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">8:50–9:45</span>To summarize. First, converged SSL checkpoints leave residual entropy that is spatially structured, concentrated in a few low-confidence voxels on the organ surface, and rho-f measures that concentration without labels. Second, Post-hoc Entropy Minimization exploits it cheaply: two to five epochs, no labels, under a minute of fine-tuning, reducing HD95 by 25 to 44 percent, with the clearest and statistically strongest gain on pancreas. Third, use it with care: check rho-f first, keep the tight mask, and set the learning rate by normalization type, because batch-normalized checkpoints break at rates instance-normalized ones tolerate. The main limitations: our tests are exploratory, the rho-star threshold rests on four checkpoints, and the test sets have 18 to 20 volumes. Thank you; I'm happy to take questions.</div></details>
+</section>
+
+<!-- 11 ────────────────────────────────────────────────────────────── -->
+<section class="slide" id="slide-11" aria-label="Backup slide 11">
+  <div><p class="eyebrow">Backup</p><h2>How the settings were chosen</h2></div>
+  <div class="body cols2">
+    <div class="card stack"><h3>Selection rule</h3><ul>
+      <li>Labeled training volumes (12 Pancreas; 4 and 8 LA) are excluded from every post-hoc objective and used only to choose the learning rate and τ<sub>m</sub>.</li>
+      <li>The rule maximizes their Dice change, not absolute Dice, since they also trained the base checkpoint.</li>
+      <li>The same rule and grid apply to PL-FT and SC; every method reports 3-seed means.</li>
+      <li>Five-fold cross-validation is impossible with four volumes, so this is a non-independent selection set; selection overfitting remains possible.</li>
+    </ul></div>
+    <div class="card stack"><h3>What is retrospective</h3><ul>
+      <li>This is a corrected retrospective reanalysis of the submitted study.</li>
+      <li>Budgets E = 2 (Pancreas) and E = 5 (LA) are carried over from the submitted protocol; grid bounds came from earlier sweeps.</li>
+      <li>Pancreas BCP is our reproduction (82.89 vs 82.91 reported), saved at its best test Dice, so its base number is optimistic.</li>
+      <li>Retrospective rank check over 33 configurations: validation vs test ΔDice, Spearman ρ = 0.78 / 0.75 / 0.99 (Pancreas / LA 5% / LA 10%).</li>
+    </ul></div>
+  </div>
+  <div class="foot"><span>Shaharabany, Carlebach, Wolf · SIPAIM 2026</span><span>11</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">Backup</span>For questions on the protocol. No learning rate or threshold is chosen on test data; the labeled volumes are excluded from the post-hoc loss but are not independent of the base checkpoint; the budgets came from the submitted protocol; the rank check uses test data and is retrospective.</div></details>
+</section>
+
+<!-- 12 ────────────────────────────────────────────────────────────── -->
+<section class="slide" id="slide-12" aria-label="Backup slide 12">
+  <div><p class="eyebrow">Backup</p><h2>Full results, 3-seed means</h2></div>
+  <div class="body" style="grid-template-rows:auto auto; align-content:start; gap:10px">
+    <div class="table-wrap">
+      <table class="t-dense">
+        <thead><tr><th>Method</th><th>Dice ↑</th><th>Jaccard ↑</th><th>HD95 ↓</th><th>ASD ↓</th></tr></thead>
+        <tbody>
+          <tr class="grp"><td colspan="5">Pancreas-CT 20% (12 labeled / 50 unlabeled / 18 test)</td></tr>
+          <tr><td>BCP (reproduced)</td><td>82.89</td><td>71.01</td><td>7.81</td><td>2.62</td></tr>
+          <tr><td>+ PL-FT</td><td>83.18</td><td>71.43</td><td>7.68</td><td>2.44</td></tr>
+          <tr><td>+ SC</td><td>83.04</td><td>71.23</td><td>7.62</td><td>2.49</td></tr>
+          <tr><td class="b">+ PEM</td><td class="b">83.91</td><td class="b">72.50</td><td class="b">5.87</td><td class="b">1.74</td></tr>
+          <tr class="grp"><td colspan="5">LA 5% (4 labeled / 76 unlabeled / 20 test)</td></tr>
+          <tr><td>BCP (released)</td><td>87.32</td><td>77.65</td><td>13.91</td><td>3.60</td></tr>
+          <tr><td>+ PL-FT</td><td class="b">88.24</td><td class="b">79.06</td><td>10.11</td><td>2.68</td></tr>
+          <tr><td>+ SC</td><td>87.75</td><td>78.29</td><td>11.77</td><td>3.08</td></tr>
+          <tr><td class="b">+ PEM</td><td>87.99</td><td>78.68</td><td class="b">7.79</td><td class="b">2.28</td></tr>
+          <tr class="grp"><td colspan="5">LA 10% (8 labeled / 72 unlabeled / 20 test)</td></tr>
+          <tr><td>BCP (released)</td><td>89.40</td><td>80.92</td><td>9.88</td><td>2.86</td></tr>
+          <tr><td>+ PL-FT</td><td class="b">90.09</td><td class="b">82.05</td><td class="b">6.37</td><td class="b">1.84</td></tr>
+          <tr><td>+ SC</td><td>89.58</td><td>81.24</td><td>8.04</td><td>2.30</td></tr>
+          <tr><td class="b">+ PEM</td><td>90.02</td><td>81.95</td><td>6.87</td><td>2.19</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="cap">Bold: best per column within each setting. Temperature scaling omitted (|ΔDice| &lt; 0.04). No significant PEM–PL-FT difference is detected on LA.</p>
+  </div>
+  <div class="foot"><span>Shaharabany, Carlebach, Wolf · SIPAIM 2026</span><span>12</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">Backup</span>Table II of the paper. Bold marks the best per column within each setting.</div></details>
+</section>
+
+<!-- 13 ────────────────────────────────────────────────────────────── -->
+<section class="slide" id="slide-13" aria-label="Backup slide 13">
+  <div><p class="eyebrow">Backup</p><h2>Per-case tests (exploratory)</h2></div>
+  <div class="body" style="grid-template-rows:auto auto; align-content:start; gap:10px">
+    <div class="table-wrap">
+      <table class="t-dense">
+        <thead>
+          <tr><th rowspan="2">Setting</th><th colspan="3">HD95 (primary)</th><th colspan="3">Dice (secondary)</th></tr>
+          <tr><th>Δ</th><th>p</th><th>Holm p</th><th>Δ</th><th>p</th><th>Holm p</th></tr>
+        </thead>
+        <tbody id="sig-body"></tbody>
+      </table>
+    </div>
+    <p class="cap">Two-sided paired Wilcoxon on seed-averaged cases (N = 18 Pancreas, N = 20 LA); for each comparator and metric, Holm across the three settings. Bold: p &lt; .05.</p>
+  </div>
+  <div class="foot"><span>Shaharabany, Carlebach, Wolf · SIPAIM 2026</span><span>13</span></div>
+  <details class="notes"><summary>Speaker notes</summary><div class="text"><span class="cue">Backup</span>Table IV of the paper, with raw and Holm-adjusted p-values. These are exploratory because budgets, grid bounds and the Pancreas base checkpoint were informed by test results.</div></details>
+</section>
+
+</div>
+</div>
+</main>
+
+<nav class="bar" aria-label="Presentation controls">
+  <button id="prev" type="button" aria-label="Previous slide">← Prev</button>
+  <span class="counter" id="counter" aria-live="polite">1 / 13</span>
+  <button id="next" type="button" aria-label="Next slide">Next →</button>
+  <button id="notesBtn" type="button" aria-pressed="false" title="Speaker notes (N)">Notes</button>
+  <button id="timerBtn" class="timer" type="button" aria-pressed="false" title="Start or pause the talk timer (T)">0:00 / 10:00</button>
+  <button id="resetBtn" type="button" title="Reset the timer">Reset</button>
+  <button id="fsBtn" type="button" title="Fullscreen (F)">Fullscreen</button>
+  <span class="hint">← → to move · N notes · T timer · F fullscreen</span>
+</nav>
+<aside class="notes-panel" id="notesPanel" hidden aria-label="Speaker notes"></aside>
+</div>
+
+<script>
+(() => {
+  // ── Data from the camera-ready paper ────────────────────────────────────
+  const ABL = [
+    ["Full (no mask)", [0.66, -0.53, -0.86, -11.3, 0.53, 1.12], 3],
+    ["Confident τm = 0.90", [0.70, 1.20, 0.63, 0.36, 0.41, 1.04], 0],
+    ["Confident τm = 0.95", [0.87, 1.43, 0.55, -1.58, 0.44, 1.04], 1],
+    ["Confident τm = 0.99", [0.94, 0.40, -1.17, -16.8, 0.50, 1.07], 2],
+    ["Confident τm = 0.999", [0.74, -0.81, -2.57, -30.2, 0.53, 1.11], 3],
+  ];
+  const SIG = [
+    ["PEM − BCP", [
+      ["Pancreas-CT 20%", "−1.94", "< .001", "< .001", "+1.02", ".021", ".042"],
+      ["LA 5%", "−6.12", ".030", ".059", "+0.66", ".090", ".090"],
+      ["LA 10%", "−3.02", ".033", ".059", "+0.62", ".014", ".041"]]],
+    ["PEM − PL-FT", [
+      ["Pancreas-CT 20%", "−1.81", ".001", ".003", "+0.73", ".060", ".180"],
+      ["LA 5%", "−2.33", ".701", ".701", "−0.26", ".927", "1.00"],
+      ["LA 10%", "+0.50", ".202", ".405", "−0.07", ".648", "1.00"]]],
+    ["PEM − SC", [
+      ["Pancreas-CT 20%", "−1.75", "< .001", ".003", "+0.87", ".048", ".145"],
+      ["LA 5%", "−3.99", ".077", ".153", "+0.24", ".261", ".261"],
+      ["LA 10%", "−1.17", ".097", ".153", "+0.44", ".058", ".145"]]],
+  ];
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const fmt = (v) => (v >= 0 ? "+" : "−") + (Math.abs(v) >= 10 ? Math.abs(v).toFixed(1) : Math.abs(v).toFixed(2));
+
+  document.getElementById("abl-body").innerHTML = ABL.map(([name, vals, deg]) =>
+    `<tr${deg === 0 && name.includes("0.90") ? ' class="sel"' : ""}><td>${esc(name).replace("τm", "τ<sub>m</sub>")}</td>` +
+    vals.map((v) => `<td class="num${v < 0 ? " neg" : ""}">${fmt(v)}</td>`).join("") +
+    `<td class="${deg === 0 ? "deg-0" : "deg-n"}">${deg}</td></tr>`).join("");
+
+  const isSig = (p) => p === "< .001" || (p.startsWith(".") && parseFloat("0" + p) < 0.05);
+  document.getElementById("sig-body").innerHTML = SIG.map(([grp, rows]) =>
+    `<tr class="grp"><td colspan="7">${esc(grp)}</td></tr>` + rows.map((r) =>
+      `<tr><td>${esc(r[0])}</td>` + r.slice(1).map((c, i) =>
+        `<td class="${(i % 3 !== 0 && isSig(c)) ? "b" : ""}">${esc(c)}</td>`).join("") + "</tr>").join("")).join("");
+
+  // ── Charts (SVG, drawn to one scale per chart, colored from tokens) ─────
+  const svg = (w, h, inner) => `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+
+  // Gradient |dH/dz| = |z| p(1-p) against confidence c = max(p, 1-p), % of its peak
+  {
+    const g = (c) => Math.abs(Math.log(c / (1 - c))) * c * (1 - c);
+    let peak = 0, peakC = 0.5;
+    for (let c = 0.5001; c < 0.9999; c += 0.0001) { const v = g(c); if (v > peak) { peak = v; peakC = c; } }
+    const W = 640, H = 380, L = 56, R = 22, T = 18, B = 62;
+    const x = (c) => L + (c - 0.5) / 0.5 * (W - L - R);
+    const y = (v) => T + (1 - v / 100) * (H - T - B);
+    const pts = (a, b) => { const out = []; for (let c = a; c <= b + 1e-9; c += 0.0025) out.push(`${x(c).toFixed(1)},${y(100 * g(Math.min(c, 0.9995)) / peak).toFixed(1)}`); return out.join(" "); };
+    let s = "";
+    [0, 25, 50, 75, 100].forEach((v) => { s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="tick" x="${L - 10}" y="${y(v) + 5}" text-anchor="end" font-size="15">${v}</text>`; });
+    [0.5, 0.6, 0.7, 0.8, 0.9, 1.0].forEach((c) => { s += `<text class="tick" x="${x(c)}" y="${H - B + 24}" text-anchor="middle" font-size="15">${c.toFixed(1)}</text>`; });
+    s += `<line class="axis" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
+    s += `<polyline fill="none" stroke="var(--pem)" stroke-width="4" stroke-linecap="round" points="${pts(0.5, 0.9)}"/>`;
+    s += `<polyline fill="none" stroke="var(--base-a)" stroke-width="4" stroke-linecap="round" points="${pts(0.9, 0.9995)}"/>`;
+    const v90 = 100 * g(0.9) / peak;
+    s += `<line x1="${x(0.9)}" x2="${x(0.9)}" y1="${y(0)}" y2="${y(v90)}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 5"/>`;
+    s += `<circle cx="${x(0.9)}" cy="${y(v90)}" r="6" fill="var(--entropy)"/>`;
+    s += `<text x="${x(0.9) - 10}" y="${y(v90) + 32}" text-anchor="end" font-size="15" font-weight="600">τm = 0.90: ${Math.round(v90)}% of peak</text>`;
+    s += `<circle cx="${x(peakC)}" cy="${y(100)}" r="5" fill="var(--pem)"/>`;
+    s += `<text x="${x(peakC)}" y="${y(100) - 12}" text-anchor="middle" font-size="15">peak, p ≈ ${peakC.toFixed(2)}</text>`;
+    s += `<text class="axis-label" x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle" font-size="15">confidence c = max(p, 1 − p)</text>`;
+    s += `<text class="axis-label" transform="translate(16 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle" font-size="15">|∂H/∂z|, % of peak</text>`;
+    document.getElementById("chart-grad").innerHTML = svg(W, H, s);
+  }
+
+  // Shell entropy concentration with the provisional threshold
+  {
+    const D = [["Supervised", "no SSL", 0.552, "var(--bad)"], ["BCP", "Pancreas 20%", 0.894, "var(--pem)"], ["BCP", "LA 5%", 0.948, "var(--pem)"], ["BCP", "LA 10%", 0.945, "var(--pem)"]];
+    const W = 620, H = 290, L = 50, R = 12, T = 16, B = 52;
+    const y = (v) => T + (1 - v) * (H - T - B);
+    const slot = (W - L - R) / D.length, bw = slot * 0.56;
+    let s = "";
+    [0, 0.25, 0.5, 0.75, 1].forEach((v) => { s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="tick" x="${L - 8}" y="${y(v) + 5}" text-anchor="end" font-size="14">${v.toFixed(2)}</text>`; });
+    D.forEach(([a, b, v, col], i) => {
+      const cx = L + slot * (i + 0.5);
+      s += `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${y(0) - y(v)}" rx="3" fill="${col}"/>`;
+      s += `<text x="${cx}" y="${(y(v) + y(0)) / 2 + 6}" text-anchor="middle" font-size="17" font-weight="600" style="fill:var(--on-bar)">${v.toFixed(3)}</text>`;
+      s += `<text class="tick" x="${cx}" y="${H - B + 22}" text-anchor="middle" font-size="14">${a}</text><text class="tick" x="${cx}" y="${H - B + 40}" text-anchor="middle" font-size="14">${b}</text>`;
+    });
+    s += `<line class="axis" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
+    s += `<line x1="${L}" x2="${W - R}" y1="${y(0.85)}" y2="${y(0.85)}" stroke="var(--entropy)" stroke-width="3" stroke-dasharray="9 6"/>`;
+    document.getElementById("chart-rho").innerHTML = svg(W, H, s);
+  }
+
+  // HD95 grouped bars
+  {
+    const cats = ["Pancreas-CT 20%", "LA 5%", "LA 10%"];
+    const series = [["var(--base-a)", [7.81, 13.91, 9.88]], ["var(--base-b)", [7.68, 10.11, 6.37]], ["var(--base-c)", [7.62, 11.77, 8.04]], ["var(--pem)", [5.87, 7.79, 6.87]]];
+    const W = 760, H = 380, L = 44, R = 10, T = 22, B = 40, MAX = 16;
+    const y = (v) => T + (1 - v / MAX) * (H - T - B);
+    const group = (W - L - R) / cats.length, bw = group * 0.78 / series.length;
+    let s = "";
+    [0, 4, 8, 12, 16].forEach((v) => { s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="tick" x="${L - 8}" y="${y(v) + 5}" text-anchor="end" font-size="15">${v}</text>`; });
+    cats.forEach((c, gi) => {
+      const g0 = L + group * gi + group * 0.11;
+      series.forEach(([col, vals], si) => {
+        const v = vals[gi], bx = g0 + si * bw;
+        s += `<rect x="${bx + 2}" y="${y(v)}" width="${bw - 4}" height="${y(0) - y(v)}" rx="2" fill="${col}"/>`;
+        s += `<text x="${bx + bw / 2}" y="${y(v) - 7}" text-anchor="middle" font-size="14" ${si === 3 ? 'font-weight="700"' : ""}>${v.toFixed(2)}</text>`;
+      });
+      s += `<text class="tick" x="${L + group * (gi + 0.5)}" y="${H - B + 26}" text-anchor="middle" font-size="16">${c}</text>`;
+    });
+    s += `<line class="axis" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
+    document.getElementById("chart-hd").innerHTML = svg(W, H, s);
+  }
+
+  // ── Presenter ───────────────────────────────────────────────────────────
+  const slides = [...document.querySelectorAll(".slide")];
+  const deck = document.getElementById("deck"), frame = document.getElementById("frame"), viewport = document.getElementById("viewport");
+  const counter = document.getElementById("counter"), notesPanel = document.getElementById("notesPanel");
+  const prevBtn = document.getElementById("prev"), nextBtn = document.getElementById("next");
+  const notesBtn = document.getElementById("notesBtn"), timerBtn = document.getElementById("timerBtn");
+  const resetBtn = document.getElementById("resetBtn"), fsBtn = document.getElementById("fsBtn");
+  const narrowMQ = window.matchMedia("(max-width: 759px)");
+  const TALK = 10, TOTAL = slides.length;
+  let cur = 0, showNotes = false;
+
+  const fromHash = () => { const m = /^#slide-(\d+)$/.exec(location.hash); return m ? Math.min(Math.max(+m[1], 1), TOTAL) - 1 : 0; };
+
+  function fit() {
+    if (narrowMQ.matches) { deck.style.transform = ""; frame.style.width = frame.style.height = ""; return; }
+    const cs = getComputedStyle(viewport);
+    const w = viewport.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const h = viewport.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const s = Math.max(0.1, Math.min(w / 1280, h / 720));
+    deck.style.transform = `scale(${s})`;
+    frame.style.width = 1280 * s + "px"; frame.style.height = 720 * s + "px";
+  }
+
+  function show(i, writeHash = true) {
+    cur = Math.min(Math.max(i, 0), TOTAL - 1);
+    slides.forEach((s, k) => { s.classList.toggle("is-active", k === cur); s.setAttribute("aria-current", k === cur ? "true" : "false"); });
+    counter.textContent = `${cur + 1} / ${TOTAL}` + (cur >= TALK ? " · backup" : "");
+    prevBtn.disabled = cur === 0; nextBtn.disabled = cur === TOTAL - 1;
+    const t = slides[cur].querySelector(".notes .text");
+    notesPanel.innerHTML = t ? t.innerHTML : "";
+    if (writeHash) { try { history.replaceState(null, "", "#slide-" + (cur + 1)); } catch (e) { /* hash is optional */ } }
+  }
+
+  function setNotes(on) {
+    showNotes = on; notesPanel.hidden = !on; notesBtn.setAttribute("aria-pressed", String(on));
+    try { localStorage.setItem("pem-talk-notes", on ? "1" : "0"); } catch (e) { /* optional */ }
+    fit();
+  }
+
+  // Talk timer: counts up against the 10-minute slot.
+  let elapsed = 0, startedAt = null, tick = null;
+  const mmss = (ms) => { const t = Math.floor(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
+  const renderTimer = () => {
+    const ms = elapsed + (startedAt ? Date.now() - startedAt : 0);
+    timerBtn.textContent = `${mmss(ms)} / 10:00`;
+    timerBtn.classList.toggle("over", ms > 10 * 60 * 1000);
+  };
+  function toggleTimer() {
+    if (startedAt) { elapsed += Date.now() - startedAt; startedAt = null; clearInterval(tick); timerBtn.setAttribute("aria-pressed", "false"); }
+    else { startedAt = Date.now(); tick = setInterval(renderTimer, 250); timerBtn.setAttribute("aria-pressed", "true"); }
+    renderTimer();
+  }
+  function resetTimer() { elapsed = 0; if (startedAt) startedAt = Date.now(); renderTimer(); }
+
+  function toggleFullscreen() {
+    const doc = document;
+    if (doc.fullscreenElement) { doc.exitFullscreen?.().catch(() => {}); return; }
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  }
+  if (!document.fullscreenEnabled) fsBtn.hidden = true;
+
+  prevBtn.addEventListener("click", () => show(cur - 1));
+  nextBtn.addEventListener("click", () => show(cur + 1));
+  notesBtn.addEventListener("click", () => setNotes(!showNotes));
+  timerBtn.addEventListener("click", toggleTimer);
+  resetBtn.addEventListener("click", resetTimer);
+  fsBtn.addEventListener("click", toggleFullscreen);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey || narrowMQ.matches) return;
+    const k = e.key;
+    if (["ArrowRight", "PageDown", " ", "Enter"].includes(k)) { if (k === "Enter" && e.target.closest("button")) return; e.preventDefault(); show(cur + 1); }
+    else if (["ArrowLeft", "PageUp", "Backspace"].includes(k)) { e.preventDefault(); show(cur - 1); }
+    else if (k === "Home") { e.preventDefault(); show(0); }
+    else if (k === "End") { e.preventDefault(); show(TOTAL - 1); }
+    else if (k === "n" || k === "N") setNotes(!showNotes);
+    else if (k === "t" || k === "T") toggleTimer();
+    else if (k === "f" || k === "F") toggleFullscreen();
+  });
+
+  // Swipe on touch screens wide enough to present on (tablets).
+  let x0 = null;
+  viewport.addEventListener("pointerdown", (e) => { if (e.pointerType === "touch") x0 = e.clientX; });
+  viewport.addEventListener("pointerup", (e) => {
+    if (x0 === null || narrowMQ.matches) { x0 = null; return; }
+    const dx = e.clientX - x0; x0 = null;
+    if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));
+  });
+
+  window.addEventListener("hashchange", () => show(fromHash(), false));
+  window.addEventListener("resize", fit);
+  narrowMQ.addEventListener?.("change", fit);
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(viewport);
+
+  let savedNotes = false;
+  try { savedNotes = localStorage.getItem("pem-talk-notes") === "1"; } catch (e) { /* optional */ }
+  show(fromHash(), false);
+  setNotes(savedNotes);
+  renderTimer();
+  fit();
+})();
+</script>
