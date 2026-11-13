@@ -1,0 +1,21 @@
+{
+  "v": 5,
+  "createdOnFiles": {"v": 1, "at": "2026-11-13T19:40:00Z"},
+  "lists": "css",
+  "format": {"v": 1, "shared": ["project/deck.css"]},
+  "title": "PEM — SIPAIM 2026 oral",
+  "cover": "cover",
+  "order": ["cover", "hook", "method", "gradient", "diagnostic", "protocol", "boundary", "compare", "cases", "mask", "takeaways", "backup-selection", "backup-results", "backup-tests"],
+  "sections": {
+    "s1": {"description": "The observation and the method", "start": "cover"},
+    "s2": {"description": "Why the loss targets the boundary, and when it fails", "start": "gradient"},
+    "s3": {"description": "How the settings were chosen, and what PEM changes", "start": "protocol"},
+    "s4": {"description": "What the mask is for, and what to take home", "start": "mask"},
+    "s5": {"description": "Backup slides for questions", "start": "backup-selection"}
+  },
+  "faces": {
+    "ibm-plex-sans": {"family": "IBM Plex Sans", "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"},
+    "ibm-plex-mono": {"family": "IBM Plex Mono", "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"}
+  },
+  "designSystems": []
+}

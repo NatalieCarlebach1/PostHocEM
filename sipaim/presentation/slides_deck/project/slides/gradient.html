@@ -1,0 +1,41 @@
+<section id="gradient">
+<p class="eyebrow">ANALYSIS</p>
+<h2 class="title">The entropy gradient targets the boundary</h2>
+<div class="body">
+<div class="stats-col">
+<img class="eq-grad" src="/_blob/013a1db4a209c92f61406ac17caada01" alt="The derivative of H with respect to the logit z equals minus z times p times one minus p">
+<div class="stat"><p class="stat-n">p ≈ 0.82</p><p class="stat-l">where the gradient peaks: partly decided voxels beside the boundary</p></div>
+<div class="stat"><p class="stat-n stat-acc">88%</p><p class="stat-l">of the peak is still there at c = 0.90, the mask threshold</p></div>
+<p class="side-note">So the unmasked loss already focuses on the boundary band. The mask also drops voxels above τm and renormalizes the loss; the ablation does not separate the two.</p>
+</div>
+<div class="plot-col">
+<div class="plot">
+<svg class="plot-svg" aria-label="Entropy-gradient magnitude against voxel confidence c: zero at c = 0.5, rising to a peak near p = 0.82, still 88 percent of the peak at c = 0.90, then falling to zero as c approaches 1. The part up to 0.90 is kept by the mask; the part above is removed." width="900" height="484" viewBox="0 -12 900 484" xmlns="http://www.w3.org/2000/svg">
+<line x1="0" y1="0" x2="900" y2="0" stroke="#DEDCD3" stroke-width="2"/>
+<line x1="0" y1="230" x2="900" y2="230" stroke="#DEDCD3" stroke-width="2"/>
+<line x1="0" y1="460" x2="900" y2="460" stroke="#9AA0A8" stroke-width="2"/>
+<line x1="720" y1="53.7" x2="720" y2="460" stroke="#9AA0A8" stroke-width="2" stroke-dasharray="8 8"/>
+<path d="M720.0,53.7 L729.0,61.8 L738.0,70.7 L747.0,80.3 L756.0,90.6 L765.0,101.9 L774.0,114.0 L783.0,127.1 L792.0,141.1 L801.0,156.3 L810.0,172.6 L819.0,190.2 L828.0,209.2 L837.0,229.8 L846.0,252.2 L855.0,276.5 L864.0,303.3 L873.0,333.0 L882.0,366.5 L891.0,405.9" fill="none" stroke="#B9BDC3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M0.0,460.0 L9.0,449.7 L18.0,439.5 L27.0,429.2 L36.0,418.9 L45.0,408.7 L54.0,398.5 L63.0,388.3 L72.0,378.2 L81.0,368.0 L90.0,357.9 L99.0,347.9 L108.0,337.9 L117.0,328.0 L126.0,318.1 L135.0,308.2 L144.0,298.4 L153.0,288.7 L162.0,279.1 L171.0,269.5 L180.0,260.0 L189.0,250.7 L198.0,241.3 L207.0,232.1 L216.0,223.0 L225.0,214.0 L234.0,205.1 L243.0,196.3 L252.0,187.6 L261.0,179.1 L270.0,170.6 L279.0,162.3 L288.0,154.2 L297.0,146.1 L306.0,138.3 L315.0,130.5 L324.0,123.0 L333.0,115.6 L342.0,108.3 L351.0,101.3 L360.0,94.4 L369.0,87.7 L378.0,81.2 L387.0,74.9 L396.0,68.8 L405.0,62.9 L414.0,57.2 L423.0,51.7 L432.0,46.5 L441.0,41.5 L450.0,36.7 L459.0,32.2 L468.0,28.0 L477.0,24.0 L486.0,20.3 L495.0,16.9 L504.0,13.7 L513.0,10.9 L522.0,8.4 L531.0,6.1 L540.0,4.2 L549.0,2.7 L558.0,1.5 L567.0,0.6 L576.0,0.1 L585.0,0.0 L594.0,0.3 L603.0,1.0 L612.0,2.1 L621.0,3.6 L630.0,5.6 L639.0,8.0 L648.0,10.9 L657.0,14.3 L666.0,18.2 L675.0,22.7 L684.0,27.7 L693.0,33.3 L702.0,39.4 L711.0,46.2 L720.0,53.7" fill="none" stroke="#13808C" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="585" cy="0" r="9" fill="#13808C"/>
+<circle cx="720" cy="53.7" r="11" fill="#D9661F"/>
+</svg>
+<p class="tick-y" style="top:25px">100</p>
+<p class="tick-y" style="top:255px">50</p>
+<p class="tick-y" style="top:485px">0</p>
+<p class="tick-x" style="left:50px">0.5</p>
+<p class="tick-x" style="left:230px">0.6</p>
+<p class="tick-x" style="left:410px">0.7</p>
+<p class="tick-x" style="left:590px">0.8</p>
+<p class="tick-x" style="left:770px">0.9</p>
+<p class="tick-x" style="left:950px">1.0</p>
+<p class="ann" style="left:545px;top:72px;width:240px;text-align:center">peak, p ≈ 0.82</p>
+<p class="ann" style="left:470px;top:132px;width:320px;text-align:right">c = 0.90: 88% of peak</p>
+<p class="axis-t">confidence c = max(p, 1 − p); y: |∂H/∂z|, % of peak</p>
+</div>
+<div class="plot-key"><div class="sw sw-pem"></div><p class="key-t">kept by the mask (c ≤ 0.90)</p><div class="sw sw-bcp"></div><p class="key-t">removed by the mask</p></div>
+</div>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>(About 60 seconds.) Why does this work without any stabilizer? Look at the gradient of a voxel’s entropy with respect to its logit: minus z times p times one minus p. It vanishes on the saturated interior, where p is near 0 or 1, and at maximum ambiguity, p = 0.5. It peaks at p of about 0.82. So the gradient is already concentrated on a band of partly decided voxels next to the decision surface, the shell from the previous slide, with no mask at all. What does the mask add? At 0.90 the gradient is still 88 percent of its peak, so the mask both removes those voxels and renormalizes the loss over the ones it keeps. Our ablation does not separate the two effects, so we treat the mask as insurance against collapse; you will see the evidence in a moment.</aside>
+</section>

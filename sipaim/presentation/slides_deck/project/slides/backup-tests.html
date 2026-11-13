@@ -1,0 +1,24 @@
+<section id="backup-tests" class="alt">
+<p class="eyebrow">BACKUP</p>
+<h2 class="title">Backup: per-case tests (exploratory)</h2>
+<div class="body col" style="gap:24px">
+<div class="abl">
+<div class="grp-head"><p class="gh" style="width:34%;text-align:left">SEED-AVERAGED CASES</p><p class="gh" style="width:33%">HD95, primary</p><p class="gh" style="width:33%">Dice, secondary</p></div>
+<table class="tbl-s">
+<tr><th style="width:34%">Comparison</th><th style="width:11%;text-align:center">Δ</th><th style="width:11%;text-align:center">p</th><th style="width:11%;text-align:center">Holm p</th><th style="width:11%;text-align:center">Δ</th><th style="width:11%;text-align:center">p</th><th style="width:11%;text-align:center">Holm p</th></tr>
+<tr><td>PEM − BCP · Pancreas-CT 20%</td><td>−1.94</td><td>&lt; .001</td><td>&lt; .001</td><td>+1.02</td><td>.021</td><td>.042</td></tr>
+<tr><td>PEM − BCP · LA 5%</td><td>−6.12</td><td>.030</td><td>.059</td><td>+0.66</td><td>.090</td><td>.090</td></tr>
+<tr><td>PEM − BCP · LA 10%</td><td>−3.02</td><td>.033</td><td>.059</td><td>+0.62</td><td>.014</td><td>.041</td></tr>
+<tr class="row-sel"><td>PEM − PL-FT · Pancreas-CT 20%</td><td>−1.81</td><td>.001</td><td>.003</td><td>+0.73</td><td>.060</td><td>.180</td></tr>
+<tr class="row-sel"><td>PEM − PL-FT · LA 5%</td><td>−2.33</td><td>.701</td><td>.701</td><td>−0.26</td><td>.927</td><td>1.00</td></tr>
+<tr class="row-sel"><td>PEM − PL-FT · LA 10%</td><td>+0.50</td><td>.202</td><td>.405</td><td>−0.07</td><td>.648</td><td>1.00</td></tr>
+<tr><td>PEM − SC · Pancreas-CT 20%</td><td>−1.75</td><td>&lt; .001</td><td>.003</td><td>+0.87</td><td>.048</td><td>.145</td></tr>
+<tr><td>PEM − SC · LA 5%</td><td>−3.99</td><td>.077</td><td>.153</td><td>+0.24</td><td>.261</td><td>.261</td></tr>
+<tr><td>PEM − SC · LA 10%</td><td>−1.17</td><td>.097</td><td>.153</td><td>+0.44</td><td>.058</td><td>.145</td></tr>
+</table>
+</div>
+<p class="note">Two-sided paired Wilcoxon, N = 18 Pancreas and 20 LA; for each comparator and metric, Holm across the three settings. Exploratory: budgets, grid bounds and the Pancreas base checkpoint were test-informed.</p>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>Backup: Table IV of the paper. Each case’s metric is averaged over the three seeds before testing, never pooling seed-case observations. HD95 is the primary endpoint and Dice secondary; for each comparator and metric, Holm correction runs across the three settings. Pancreas: PEM beats BCP, PL-FT and SC on HD95 after correction. LA: the HD95 gains over BCP are nominal, raw p .030 and .033 but .059 after correction, and no significant difference from PL-FT is detected on either metric. We call these exploratory because the budgets, grid bounds and the pancreas base checkpoint were informed by test results, which multiplicity correction does not remove.</aside>
+</section>

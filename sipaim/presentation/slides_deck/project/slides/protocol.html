@@ -1,0 +1,24 @@
+<section id="protocol">
+<p class="eyebrow">PROTOCOL</p>
+<h2 class="title">How the settings were chosen</h2>
+<div class="body col">
+<div class="split">
+<div class="seg seg-lab" style="flex:1"><p class="seg-k">LABELED · 12 / 4 / 8</p><p class="seg-r">Pancreas / LA 5% / LA 10%</p><p class="seg-d">Choose learning rate and τm by their Dice change; never in the loss</p></div>
+<div class="seg" style="flex:2"><p class="seg-k">UNLABELED · 50 / 76 / 72</p><p class="seg-r">Pancreas / LA 5% / LA 10%</p><p class="seg-d">The only data the PEM loss ever sees</p></div>
+<div class="seg seg-test" style="flex:1"><p class="seg-k">TEST · 18 / 20 / 20</p><p class="seg-r">not used for selection</p><p class="seg-d">Reported once</p></div>
+</div>
+<div class="chain">
+<p class="pill">Same rule for PEM, PL-FT and SC</p>
+<x-shape kind="arrow-right" class="arrow"></x-shape>
+<p class="pill">E = 2 (Pancreas), 5 (LA)</p>
+<x-shape kind="arrow-right" class="arrow"></x-shape>
+<p class="pill pill-end">Final epoch, 3 seeds</p>
+</div>
+<div class="prep">
+<h3 class="prep-h">What stays retrospective</h3>
+<p class="prep-p">This is a corrected reanalysis. The budgets and grid bounds were carried over from test-informed sweeps, and the Pancreas BCP is our reproduction saved at its best test Dice, so the significance tests are exploratory.</p>
+</div>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>(About 40 seconds.) A word on how the settings were chosen, since it matters for every number that follows. The learning rate and the mask threshold are chosen on the labeled training volumes, by the change in their Dice; those volumes never enter the PEM loss, which sees only unlabeled data. The two baselines, pseudo-label fine-tuning and self-consistency, go through exactly the same rule and grid, and all methods report the final epoch, averaged over three seeds. In full transparency, this is a corrected reanalysis: the epoch budgets and grid bounds came from earlier sweeps that saw test results, and our pancreas BCP was saved at its best test Dice. So we treat the significance tests as exploratory.</aside>
+</section>

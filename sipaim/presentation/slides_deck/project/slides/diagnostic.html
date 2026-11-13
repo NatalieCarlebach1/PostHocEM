@@ -1,0 +1,27 @@
+<section id="diagnostic">
+<p class="eyebrow">DIAGNOSTIC</p>
+<h2 class="title">A label-free check before fine-tuning</h2>
+<div class="body">
+<div class="leftcol">
+<img class="eq-rho" src="/_blob/063e9c60d929dd215f6fb142f43fe70e" alt="rho f of tau equals the sum over voxels of H i times the indicator that c i is at most tau, divided by the sum of H i">
+<p class="note">The share of prediction entropy held by low-confidence voxels (c ≤ 0.99), from one forward pass over the unlabeled data. No labels and no validation set.</p>
+<div class="chart">
+<div class="legend"><div class="sw sw-bcp"></div><p class="legend-t">BCP</p><div class="sw sw-bad"></div><p class="legend-t">Supervised only</p><div class="sw sw-ent"></div><p class="legend-t">ρ* = 0.85, provisional</p></div>
+<div class="rho">
+<div class="row"><p class="rl">Supervised (no SSL)</p><div class="bars"><div class="bl"><div class="bar bar-thick bar-bad" style="width:331px"></div><p class="bv">0.552</p></div></div></div>
+<div class="row"><p class="rl rl-em">BCP Pancreas 20%</p><div class="bars"><div class="bl"><div class="bar bar-thick bar-bcp" style="width:536px"></div><p class="bv bv-em">0.894</p></div></div></div>
+<div class="row"><p class="rl rl-em">BCP LA 5%</p><div class="bars"><div class="bl"><div class="bar bar-thick bar-bcp" style="width:569px"></div><p class="bv bv-em">0.948</p></div></div></div>
+<div class="row"><p class="rl rl-em">BCP LA 10%</p><div class="bars"><div class="bl"><div class="bar bar-thick bar-bcp" style="width:567px"></div><p class="bv bv-em">0.945</p></div></div></div>
+<div class="thresh" style="height:272px"></div>
+</div>
+</div>
+</div>
+<div class="side">
+<div class="stat"><p class="stat-n stat-bad">75.66 → 17.29</p><p class="stat-l">Dice of the supervised-only checkpoint (ρf = 0.55) after PEM at the Pancreas-selected setting; 3 seeds, SD 5.47</p></div>
+<div class="stat"><p class="stat-n">+1.02</p><p class="stat-l">Dice on BCP Pancreas-CT with that same setting</p></div>
+<p class="side-note">ρ* = 0.85 is provisional: it rests on these four checkpoints. ρf has no spatial term; boundary localization comes from distance to the boundary, 5–11 voxels for BCP vs 14.5 for the supervised model.</p>
+</div>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>(About 60 seconds.) Because sharpening hurts when the uncertainty is not boundary-shaped, we want a check we can run before fine-tuning, without labels. That is rho-f: the fraction of the total prediction entropy held by the low-confidence voxels, from one forward pass over the unlabeled data. The three BCP checkpoints all score about 0.9 or higher. A supervised-only network trained on the same 12 pancreas labels scores 0.55: its uncertainty is scattered through the interior. And on that checkpoint PEM fails badly: the very setting that improves BCP pancreas by about one Dice point collapses the supervised model from 75.7 to 17.3 Dice. Two caveats: the 0.85 threshold rests on these four checkpoints only, and rho-f has no spatial term; that the uncertain voxels sit on the boundary we show separately, with their distance to it.</aside>
+</section>

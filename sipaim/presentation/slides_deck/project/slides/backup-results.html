@@ -1,0 +1,28 @@
+<section id="backup-results" class="alt">
+<p class="eyebrow">BACKUP</p>
+<h2 class="title">Backup: full results, 3-seed means</h2>
+<div class="body col" style="gap:24px">
+<div class="abl">
+<div class="grp-head"><p class="gh" style="width:22%;text-align:left">DICE ↑ · HD95 ↓</p><p class="gh" style="width:26%">Pancreas-CT 20%</p><p class="gh" style="width:26%">LA 5%</p><p class="gh" style="width:26%">LA 10%</p></div>
+<table class="tbl-s">
+<tr><th style="width:22%">Method</th><th style="width:13%;text-align:center">Dice</th><th style="width:13%;text-align:center">HD95</th><th style="width:13%;text-align:center">Dice</th><th style="width:13%;text-align:center">HD95</th><th style="width:13%;text-align:center">Dice</th><th style="width:13%;text-align:center">HD95</th></tr>
+<tr><td>BCP</td><td>82.89</td><td>7.81</td><td>87.32</td><td>13.91</td><td>89.40</td><td>9.88</td></tr>
+<tr><td>+ PL-FT</td><td>83.18</td><td>7.68</td><td>88.24</td><td>10.11</td><td>90.09</td><td>6.37</td></tr>
+<tr><td>+ SC</td><td>83.04</td><td>7.62</td><td>87.75</td><td>11.77</td><td>89.58</td><td>8.04</td></tr>
+<tr class="row-sel"><td>+ PEM</td><td>83.91</td><td>5.87</td><td>87.99</td><td>7.79</td><td>90.02</td><td>6.87</td></tr>
+</table>
+</div>
+<div class="abl">
+<div class="grp-head"><p class="gh" style="width:22%;text-align:left">JACCARD ↑ · ASD ↓</p><p class="gh" style="width:26%">Pancreas-CT 20%</p><p class="gh" style="width:26%">LA 5%</p><p class="gh" style="width:26%">LA 10%</p></div>
+<table class="tbl-s">
+<tr><th style="width:22%">Method</th><th style="width:13%;text-align:center">Jaccard</th><th style="width:13%;text-align:center">ASD</th><th style="width:13%;text-align:center">Jaccard</th><th style="width:13%;text-align:center">ASD</th><th style="width:13%;text-align:center">Jaccard</th><th style="width:13%;text-align:center">ASD</th></tr>
+<tr><td>BCP</td><td>71.01</td><td>2.62</td><td>77.65</td><td>3.60</td><td>80.92</td><td>2.86</td></tr>
+<tr><td>+ PL-FT</td><td>71.43</td><td>2.44</td><td>79.06</td><td>2.68</td><td>82.05</td><td>1.84</td></tr>
+<tr><td>+ SC</td><td>71.23</td><td>2.49</td><td>78.29</td><td>3.08</td><td>81.24</td><td>2.30</td></tr>
+<tr class="row-sel"><td>+ PEM</td><td>72.50</td><td>1.74</td><td>78.68</td><td>2.28</td><td>81.95</td><td>2.19</td></tr>
+</table>
+</div>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>Backup: Table II of the paper. All methods start from the same checkpoint (BCP reproduced for Pancreas-CT, released for LA), run the same fixed budget and pick their learning rate with the same rule; values are three-seed means. Temperature scaling is omitted because it changes Dice by less than 0.04. PEM has the best Dice and boundary metrics on Pancreas-CT and the best HD95 and ASD on LA 5 percent; PL-FT has the best values on LA 10 percent, with no significant PEM versus PL-FT difference detected on LA.</aside>
+</section>

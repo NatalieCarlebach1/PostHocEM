@@ -1,0 +1,29 @@
+<section id="backup-selection" class="alt">
+<p class="eyebrow">BACKUP</p>
+<h2 class="title">Backup: how the selection rule was checked</h2>
+<div class="body col">
+<div class="body" style="margin-top:0px">
+<div class="tbl-col" style="width:800px">
+<h3 class="tbl-h">Selected on the labeled volumes</h3>
+<table class="tbl">
+<tr><th style="width:40%">Setting</th><th style="width:24%;text-align:right">Learning rate</th><th style="width:16%;text-align:right">τm</th><th style="width:20%;text-align:right">Budget E</th></tr>
+<tr><td>Pancreas-CT 20%</td><td>5×10⁻⁵</td><td>0.90</td><td>2</td></tr>
+<tr><td>LA 5%</td><td>5×10⁻⁶</td><td>0.90</td><td>5</td></tr>
+<tr><td>LA 10%</td><td>5×10⁻⁶</td><td>0.90</td><td>5</td></tr>
+</table>
+</div>
+<div class="tbl-col" style="flex:1">
+<h3 class="tbl-h">Retrospective rank check, 33 configurations</h3>
+<table class="tbl">
+<tr><th style="width:40%">Setting</th><th style="width:30%;text-align:right">Spearman ρ</th><th style="width:30%;text-align:right">No collapses</th></tr>
+<tr><td>Pancreas-CT 20%</td><td>0.78</td><td>0.78</td></tr>
+<tr><td>LA 5%</td><td>0.75</td><td>0.67</td></tr>
+<tr><td>LA 10%</td><td>0.99</td><td>0.96</td></tr>
+</table>
+</div>
+</div>
+<p class="note">Rank agreement between ΔDice on the labeled volumes and ΔDice on test, across the 30 ablation cells and 3 learning-rate-ceiling runs. Five-fold cross-validation is impossible with four labeled volumes, so the labeled volumes are a non-independent selection set and selection overfitting remains possible. They also trained the base checkpoint, so selection uses their Dice change, not their absolute Dice. E was carried over from the submitted protocol. Pancreas BCP is our reproduction (82.89 vs 82.91 reported), saved at its best test Dice.</p>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>Backup for questions on selection. The learning rate and mask threshold are chosen on the labeled training volumes, by their Dice change; those volumes never enter the PEM loss but did train the base checkpoint, so they are not an independent validation set. Five-fold cross-validation was impossible with four volumes on LA 5 percent. As a retrospective check, the labeled-volume change ranks the 33 configurations the way the test change does: Spearman 0.78, 0.75 and 0.99, and 0.67 to 0.96 with outright collapses removed, so it is not just collapse detection. The budgets came from the submitted protocol, and the pancreas BCP is our reproduction saved at its best test Dice.</aside>
+</section>

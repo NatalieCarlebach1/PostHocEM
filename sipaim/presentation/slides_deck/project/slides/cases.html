@@ -1,0 +1,16 @@
+<section id="cases">
+<p class="eyebrow">QUALITATIVE</p>
+<h2 class="title">Corrections land on the organ surface</h2>
+<div class="body col">
+<div class="qual">
+<div class="qual-head"><p class="qh">IMAGE</p><p class="qh">GT</p><p class="qh">BCP</p><p class="qh">PEM</p><p class="qh">ENTROPY</p><p class="qh">CORR.</p></div>
+<div class="qual-body">
+<div class="qual-rows"><p class="qr">Pancreas-CT<br>20%</p><p class="qr">LA 5%</p><p class="qr">LA 10%</p></div>
+<img class="qual-img" src="/_blob/a5f193ae081c14c3c0b00da7eca85ced" alt="Median-improvement test case for each of three settings, six panels each: image; ground truth in green; BCP in red with Dice 85.49, 89.59 and 89.28; PEM in cyan with Dice 86.53, 90.12 and 89.98; BCP's entropy as a bright rim on the boundary; and a correction map where green marks voxels PEM fixed and red voxels it broke, all lying on the surface">
+</div>
+</div>
+<p class="note">Median-improvement case per setting (seed 2020), so nothing is cherry-picked. GT green · BCP red · PEM cyan · Corr.: green = fixed, red = broken.</p>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>(About 40 seconds.) Qualitatively, these are the median-improvement test cases for each setting, chosen by rule so nothing is cherry-picked. The entropy column shows the thin rim the gradient acts on. In the correction column, green is where PEM fixes BCP and red is where it breaks it. Corrections of either sign lie on the surface, not in the interior, which is what the mechanism predicts. Their balance follows the headroom: green dominates on LA 5 percent, corrections are sparse on pancreas, and on the most saturated setting, LA 10 percent, red covers part of the rim even though this case improves overall.</aside>
+</section>

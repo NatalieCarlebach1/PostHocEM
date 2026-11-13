@@ -1,0 +1,35 @@
+<section id="compare">
+<p class="eyebrow">RESULT</p>
+<h2 class="title">The edge over baselines holds on Pancreas</h2>
+<div class="body">
+<div class="chart">
+<div class="legend"><div class="sw sw-bcp"></div><p class="legend-t">BCP</p><div class="sw sw-pl"></div><p class="legend-t">+ PL-FT</p><div class="sw sw-sc"></div><p class="legend-t">+ SC</p><div class="sw sw-pem"></div><p class="legend-t">+ PEM</p><p class="legend-note">HD95, voxels</p></div>
+<div class="row"><p class="rl rl-em">Pancreas-CT 20%</p><div class="bars">
+<div class="bl"><div class="bar bar-bcp" style="width:391px"></div><p class="bv">7.81</p></div>
+<div class="bl"><div class="bar bar-pl" style="width:384px"></div><p class="bv">7.68</p></div>
+<div class="bl"><div class="bar bar-sc" style="width:381px"></div><p class="bv">7.62</p></div>
+<div class="bl"><div class="bar bar-pem" style="width:294px"></div><p class="bv bv-em">5.87</p></div>
+</div></div>
+<div class="row"><p class="rl rl-em">LA 5%</p><div class="bars">
+<div class="bl"><div class="bar bar-bcp" style="width:696px"></div><p class="bv">13.91</p></div>
+<div class="bl"><div class="bar bar-pl" style="width:506px"></div><p class="bv">10.11</p></div>
+<div class="bl"><div class="bar bar-sc" style="width:589px"></div><p class="bv">11.77</p></div>
+<div class="bl"><div class="bar bar-pem" style="width:390px"></div><p class="bv bv-em">7.79</p></div>
+</div></div>
+<div class="row"><p class="rl rl-em">LA 10%</p><div class="bars">
+<div class="bl"><div class="bar bar-bcp" style="width:494px"></div><p class="bv">9.88</p></div>
+<div class="bl"><div class="bar bar-pl" style="width:319px"></div><p class="bv">6.37</p></div>
+<div class="bl"><div class="bar bar-sc" style="width:402px"></div><p class="bv">8.04</p></div>
+<div class="bl"><div class="bar bar-pem" style="width:344px"></div><p class="bv bv-em">6.87</p></div>
+</div></div>
+</div>
+<div class="side">
+<div class="stat"><p class="stat-n">17 of 18</p><p class="stat-l">Pancreas cases where PEM lowers HD95 below BCP (Holm p &lt; .001)</p></div>
+<div class="stat"><p class="stat-n stat-acc">p = .003</p><p class="stat-l">Holm-adjusted, PEM vs PL-FT and vs SC on Pancreas HD95</p></div>
+<div class="stat"><p class="stat-n">n.s.</p><p class="stat-l">On LA, no significant difference from PL-FT on either metric</p></div>
+<p class="side-note">Exploratory: two-sided Wilcoxon on seed-averaged cases, Holm across the three settings. 3-seed means.</p>
+</div>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>(About 60 seconds.) Now against other post-hoc methods, run under the identical protocol: pseudo-label fine-tuning, PL-FT, and self-consistency, SC. Temperature scaling is not shown: it cannot move the argmax, and changes Dice by less than 0.04. On pancreas the boundary gain is clear: PEM lowers HD95 against BCP on 17 of 18 cases, and beats both baselines after Holm correction, p = .003. On left atrium it is not: the gains over BCP are nominal, and we detect no significant difference from pseudo-labelling on either metric; on LA 10 percent PL-FT is even lower in mean HD95. These tests are exploratory, for the reasons on the protocol slide. Our reading: PEM’s advantage over pseudo-labelling shrinks as the checkpoint saturates, as the gradient analysis predicts.</aside>
+</section>

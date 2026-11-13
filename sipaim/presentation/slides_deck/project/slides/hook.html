@@ -1,0 +1,23 @@
+<section id="hook">
+<p class="eyebrow">MOTIVATION</p>
+<h2 class="title">Converged SSL leaves entropy at the boundary</h2>
+<div class="body mid">
+<div class="pair">
+<div class="shot">
+<img class="shot-img" src="/_blob/4405d70f03c6b660aebfa950783a0758" alt="Left-atrium MRI test slice from the LA 5% setting">
+<p class="cap">Input MRI, LA 5% test case</p>
+</div>
+<div class="shot">
+<img class="shot-img" src="/_blob/eebbc67f4c075e61a6787f1f1e898597" alt="Per-voxel entropy of the converged BCP model on the same slice: a thin bright rim along the predicted surface, dark interior">
+<p class="cap">BCP’s per-voxel entropy, after training</p>
+</div>
+</div>
+<div class="hook-text">
+<p class="lead">Semi-supervised methods use the unlabeled scans while training, then stop using them at convergence.</p>
+<p class="lead">On three BCP checkpoints, 89–95% of the remaining prediction entropy sits in 5–9% of the voxels, on the predicted organ surface.</p>
+<p class="ask">Can a few epochs on that leftover uncertainty improve the model, with no labels at all?</p>
+</div>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>(About 50 seconds.) Semi-supervised methods such as BCP use a large unlabeled set during training, and then stop using it once training converges. We looked at what a converged model still doesn’t know about that unlabeled data. On the left is an MRI slice; on the right, the per-voxel entropy of the trained BCP model. On three BCP checkpoints, pancreas CT at 20% labels and left atrium at 5% and 10%, 89 to 95 percent of the prediction entropy sits in only 5 to 9 percent of the voxels, and those voxels form a thin shell on the predicted surface, where segmentation errors live. So our question: can a few epochs on that leftover uncertainty improve the model, with no labels at all?</aside>
+</section>

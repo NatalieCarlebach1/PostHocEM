@@ -1,0 +1,25 @@
+<section id="method">
+<p class="eyebrow">METHOD</p>
+<h2 class="title">A few epochs of entropy minimization</h2>
+<div class="body col">
+<div class="lane">
+<p class="lane-label">AFTER SSL CONVERGES · UNLABELED VOLUMES ONLY</p>
+<div class="flow">
+<div class="step"><h3 class="step-h">Converged checkpoint</h3><p class="step-p">BCP: released for LA, reproduced for Pancreas-CT</p></div>
+<x-shape kind="arrow-right" class="arrow"></x-shape>
+<div class="step step-key"><h3 class="step-h">Confident-shell mask</h3><p class="step-p">Keep voxels with confidence c ≤ τm = 0.90</p></div>
+<x-shape kind="arrow-right" class="arrow"></x-shape>
+<div class="step step-key"><h3 class="step-h">Entropy loss</h3><p class="step-p">Mean entropy of the kept voxels; no labels or pseudo-labels</p></div>
+<x-shape kind="arrow-right" class="arrow"></x-shape>
+<div class="step"><h3 class="step-h">Fixed budget</h3><p class="step-p">2 epochs (Pancreas), 5 (LA); the final epoch is reported</p></div>
+</div>
+</div>
+<div class="eqrow">
+<img class="eq-loss" src="/_blob/595fd2f8636a96e0ba92afe0059d32c6" alt="L PEM equals the sum over voxels of m i times H i, divided by the sum of m i plus epsilon, where m i is the indicator that c i is at most tau m">
+<p class="note">Hᵢ is voxel i’s entropy and cᵢ its confidence, the largest class probability. The loss is averaged over unlabeled volumes; ε guards an empty mask.</p>
+</div>
+<p class="note">Fine-tuning takes under a minute on one GPU. No new architecture, no teacher, no test-time optimisation.</p>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>(About 60 seconds.) The method, Post-hoc Entropy Minimization or PEM, is deliberately simple. Take any converged SSL checkpoint; in our experiments that is BCP, the released checkpoints for left atrium and our reproduction of BCP for pancreas. Fine-tune it on the unlabeled volumes with a single loss: the mean entropy of the voxels whose confidence is at most tau-m, which we set to 0.90. There are no labels, no pseudo-labels, no teacher and no change to the network. Stop after a fixed budget, two epochs for pancreas and five for left atrium, and report the final epoch. The fine-tuning itself takes under a minute on one GPU. Entropy minimization is classical; what is new is the regime: applying it after convergence, when the remaining entropy already sits on the boundary.</aside>
+</section>

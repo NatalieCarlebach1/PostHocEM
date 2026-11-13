@@ -1,0 +1,18 @@
+<section id="takeaways" class="dark">
+<p class="eyebrow">TAKEAWAYS</p>
+<h2 class="title">Three lessons from PEM</h2>
+<div class="body col">
+<div class="takes">
+<div class="take"><p class="take-n">01</p><p class="take-t">Converged BCP checkpoints keep their residual entropy in a thin shell on the organ surface; ρf measures it from one forward pass.</p></div>
+<div class="take"><p class="take-n">02</p><p class="take-t">Under a minute of label-free fine-tuning cuts HD95 by 25–44%; the edge over pseudo-labelling is clear on Pancreas-CT only.</p></div>
+<div class="take"><p class="take-n">03</p><p class="take-t">Check ρf first and keep the τm = 0.90 mask: a diffuse-entropy model collapses, and looser masks cost up to 30 Dice.</p></div>
+</div>
+<p class="limits">Limitations: the significance tests are exploratory; ρ* rests on four checkpoints; 18–20 test volumes.</p>
+<div class="thanks">
+<p class="thanks-t">Thank you. Questions welcome.</p>
+<p class="thanks-c">Tal Shaharabany, shaharabany@mail.tau.ac.il · Natalie Carlebach · Lior Wolf, wolf@cs.tau.ac.il</p>
+</div>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>(About 40 seconds.) Three things to take home. First, converged BCP checkpoints leave residual entropy that is spatially structured, in a thin shell on the organ surface, and rho-f measures that concentration without labels. Second, Post-hoc Entropy Minimization uses it cheaply: under a minute of label-free fine-tuning cuts the boundary error by 25 to 44 percent, with the clearest and statistically strongest gain over other post-hoc methods on pancreas. Third, use it with care: check rho-f first and keep the tight mask, because a model with diffuse entropy collapses and looser masks can cost 30 Dice points. The main limitations: our tests are exploratory, the threshold rests on four checkpoints, and the test sets have 18 to 20 volumes. Thank you, and I’m happy to take questions.</aside>
+</section>

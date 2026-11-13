@@ -1,0 +1,62 @@
+<section id="boundary" class="dark">
+<p class="eyebrow">RESULT</p>
+<h2 class="title">HD95 falls by 25–44% on all three checkpoints</h2>
+<div class="body">
+<div class="db">
+<div class="db-row">
+<p class="db-label">Pancreas-CT 20%</p>
+<div class="db-track">
+<div class="db-base"></div>
+<div class="db-line" style="left:367px;width:121px"></div>
+<x-shape kind="ellipse" class="db-dot ring-bcp" style="left:474px"></x-shape>
+<x-shape kind="ellipse" class="db-dot dot-pem" style="left:353px"></x-shape>
+<p class="db-val" style="left:327px">5.87</p>
+<p class="db-val" style="left:448px">7.81</p>
+</div>
+<p class="db-delta">−24.8%</p>
+</div>
+<div class="db-row">
+<p class="db-label">LA 5%</p>
+<div class="db-track">
+<div class="db-base"></div>
+<div class="db-line" style="left:487px;width:382px"></div>
+<x-shape kind="ellipse" class="db-dot ring-bcp" style="left:855px"></x-shape>
+<x-shape kind="ellipse" class="db-dot dot-pem" style="left:473px"></x-shape>
+<p class="db-val" style="left:447px">7.79</p>
+<p class="db-val" style="left:829px">13.91</p>
+</div>
+<p class="db-delta">−44.0%</p>
+</div>
+<div class="db-row">
+<p class="db-label">LA 10%</p>
+<div class="db-track">
+<div class="db-base"></div>
+<div class="db-line" style="left:429px;width:189px"></div>
+<x-shape kind="ellipse" class="db-dot ring-bcp" style="left:604px"></x-shape>
+<x-shape kind="ellipse" class="db-dot dot-pem" style="left:415px"></x-shape>
+<p class="db-val" style="left:389px">6.87</p>
+<p class="db-val" style="left:578px">9.88</p>
+</div>
+<p class="db-delta">−30.5%</p>
+</div>
+<div class="db-row" style="height:36px">
+<p class="db-axis-l">HD95 (voxels)</p>
+<div class="db-ticks">
+<p class="db-tick" style="left:0px">0</p>
+<p class="db-tick" style="left:470px;text-align:center">8</p>
+<p class="db-tick" style="left:940px;text-align:right">16</p>
+</div>
+<div class="db-spacer"></div>
+</div>
+<div class="db-legend">
+<x-shape kind="ellipse" class="key-fill"></x-shape>
+<p class="db-lt">BCP + PEM</p>
+<x-shape kind="ellipse" class="key-ring"></x-shape>
+<p class="db-lt">BCP</p>
+</div>
+<p class="db-note">Means over 3 seeds; lower is better. Dice rises at the same time, by +1.02, +0.66 and +0.62 points. On LA 10%, pseudo-label fine-tuning reaches a lower HD95 still (next slide).</p>
+</div>
+</div>
+<div class="footer"><p class="foot-t">PEM · SIPAIM 2026</p><div class="pg"></div></div>
+<aside>(About 50 seconds.) Here is the main effect. Each row is one BCP checkpoint: the ring is BCP, the dot is BCP plus PEM, and the axis is the 95th-percentile Hausdorff distance in voxels. On every checkpoint the boundary error falls: by 25 percent on pancreas, 44 percent on left atrium at 5 percent labels, and 30 percent at 10 percent. Dice improves at the same time, by about one point, 0.7 and 0.6. These are three-seed means after a fixed budget of two to five epochs. One honest caveat up front: on LA 10 percent, pseudo-label fine-tuning reaches a lower HD95 still, which brings us to the comparison with other post-hoc methods.</aside>
+</section>
